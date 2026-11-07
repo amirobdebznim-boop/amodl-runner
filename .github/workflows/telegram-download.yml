@@ -67,7 +67,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Node.js (for HipMH runtime decoder)
-        if: contains(inputs.chapter_url, 'hipmh')
+        if: contains(inputs.chapter_url, 'hipmh') || contains(inputs.batch_json, 'hipmh')
         uses: actions/setup-node@v4
         with:
           node-version: '20'
