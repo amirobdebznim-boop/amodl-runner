@@ -262,9 +262,13 @@ async function run() {
   async function worker() {
     while (queue.length > 0) {
       const file = queue.shift();
+      if (!file) break;
       const r = await auditSingleSource(file);
       results.push(r);
-      console.log(`[${String(results.length).padStart(2, ' ')}/${files.length}] ${r.name.padEnd(25)} | Base: ${String(r.baseStatus).padEnd(3)} | Mode A: ${r.modeA_status.padEnd(15)} | Mode B: ${r.modeB_status.padEnd(22)} (${r.baseTime})`);
+      const safeName = String(r.name || r.id || 'unknown').substring(0, 25);
+      const modeA = String(r.modeA_status || '');
+      const modeB = String(r.modeB_status || '');
+      console.log(`[${String(results.length).padStart(2, ' ')}/${files.length}] ${safeName.padEnd(25)} | Base: ${String(r.baseStatus).padEnd(3)} | Mode A: ${modeA.padEnd(15)} | Mode B: ${modeB.padEnd(22)} (${r.baseTime})`);
     }
   }
 
