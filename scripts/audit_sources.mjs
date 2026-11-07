@@ -262,28 +262,9 @@ async function auditSingleSource(file) {
   }
 }
 
-async function run() {
-  const results = [];
-  const concurrency = 6;
-  const queue = [...files];
-
-  async function worker() {
-    while (queue.length > 0) {
-      const file = queue.shift();
-      if (!file) break;
-      const r = await auditSingleSource(file);
-      results.push(r);
-      const safeName = String(r.name || r.id || 'unknown').substring(0, 25);
-      const modeA = String(r.modeA_status || '');
-      const modeB = String(r.modeB_status || '');
-      console.log(`[${String(results.length).padStart(2, ' ')}/${files.length}] ${safeName.padEnd(25)} | Base: ${String(r.baseStatus).padEnd(3)} | Mode A: ${modeA.padEnd(15)} | Mode B: ${modeB.padEnd(22)} (${r.baseTime})`);
-    }
-  }
-
-  await Promise.all(Array.from({ length: concurrency }, () => worker()));
-
+function writeMarkdownReport(results) {
   const order = { ok: 0, warn: 1, blocked: 2 };
-  results.sort((a, b) => {
+  const sorted = [...results].sort((a, b) => {
     const ordA = order[a?.overall] ?? 9;
     const ordB = order[b?.overall] ?? 9;
     if (ordA !== ordB) return ordA - ordB;
@@ -292,31 +273,76 @@ async function run() {
     return nameA.localeCompare(nameB);
   });
 
-  fs.writeFileSync('audit_report.json', JSON.stringify(results, null, 2));
-
-  const countOk = results.filter(r => r.overall === 'ok').length;
-  const countBlocked = results.filter(r => r.overall === 'blocked').length;
-  const countWarn = results.filter(r => r.overall === 'warn').length;
+  const countOk = sorted.filter(r => r.overall === 'ok').length;
+  const countBlocked = sorted.filter(r => r.overall === 'blocked').length;
+  const countWarn = sorted.filter(r => r.overall === 'warn').length;
 
   let md = `# 📊 گزارش جامع بررسی تمام ۶۲ سورس AmoDL در سرور گیت‌هاب اکشن\n\n`;
   md += `**تاریخ و ساعت تست سرور:** ${new Date().toUTCString()}  \n`;
   md += `**سرور تست:** GitHub Actions Runner (\`ubuntu-latest\` / Azure Datacenter)  \n`;
-  md += `**کل سورس‌های ریپازیتوری:** ${results.length} سورس  \n\n`;
+  md += `**کل سورس‌های بررسی شده:** ${sorted.length} از ۶۲ سورس  \n\n`;
   md += `### خلاصه وضعیت:\n`;
-  md += `- 🟢 **سورس‌های کاملاً فعال و باز (پاسخ ۲۰۰ مستقیم):** ${countOk} سورس (${((countOk/results.length)*100).toFixed(1)}%)\n`;
+  md += `- 🟢 **سورس‌های کاملاً فعال و باز (پاسخ ۲۰۰ مستقیم):** ${countOk} سورس (${((countOk / (sorted.length || 1)) * 100).toFixed(1)}%)\n`;
   md += `- 🔴 **سورس‌های مسدود با آنتی‌ربات دیتاسنتر (Cloudflare 403):** ${countBlocked} سورس\n`;
   md += `- ⚠️ **سورس‌های نیازمند اسلاگ دقیق / تغییر دامنه:** ${countWarn} سورس\n\n`;
 
   md += `| # | عنوان سورس | دامنه / شناسه | زبان | پینگ سرور | حالت ۱ (لینک مانگا + شماره) | حالت ۲ (لینک مستقیم چپتر) | نتیجه نهایی |\n`;
   md += `| :-: | :--- | :--- | :-: | :-: | :---: | :---: | :---: |\n`;
 
-  results.forEach((r, idx) => {
+  sorted.forEach((r, idx) => {
     const verdictBadge = r.overall === 'ok' ? '🟢 **فعال**' : (r.overall === 'blocked' ? '🔴 **مسدود WAF**' : '⚠️ **بررسی**');
     md += `| ${idx + 1} | **${r.name}** | <code>${r.id}</code> | ${r.lang} | ${r.baseTime} | ${r.modeA_status} | ${r.modeB_status} | ${verdictBadge} |\n`;
   });
 
   fs.writeFileSync('audit_report.md', md);
+  fs.writeFileSync('audit_report.json', JSON.stringify(sorted, null, 2));
+}
+
+async function run() {
+  const results = [];
+  const concurrency = 4;
+  const queue = [...files];
+
+  writeMarkdownReport(results);
+
+  async function worker() {
+    while (queue.length > 0) {
+      const file = queue.shift();
+      if (!file) break;
+      let r;
+      try {
+        r = await Promise.race([
+          auditSingleSource(file),
+          new Promise(res => setTimeout(() => res({
+            file, id: file.replace('.pcext.json', ''), name: file.replace('.pcext.json', ''),
+            lang: 'en', baseUrl: '', baseStatus: 0, baseTime: 'timeout',
+            modeA_status: 'تایم‌اوت', modeB_status: '❌ تایم‌اوت', modeB_pages: 0, overall: 'warn'
+          }), 12000))
+        ]);
+      } catch (e) {
+        r = {
+          file, id: file.replace('.pcext.json', ''), name: file.replace('.pcext.json', ''),
+          lang: 'en', baseUrl: '', baseStatus: 0, baseTime: '0s',
+          modeA_status: 'خطا', modeB_status: 'خطا', modeB_pages: 0, overall: 'warn'
+        };
+      }
+      results.push(r);
+      writeMarkdownReport(results);
+      const safeName = String(r.name || r.id || 'unknown').substring(0, 25);
+      const modeA = String(r.modeA_status || '');
+      const modeB = String(r.modeB_status || '');
+      console.log(`[${String(results.length).padStart(2, ' ')}/${files.length}] ${safeName.padEnd(25)} | Base: ${String(r.baseStatus).padEnd(3)} | Mode A: ${modeA.padEnd(15)} | Mode B: ${modeB.padEnd(22)} (${r.baseTime})`);
+    }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  writeMarkdownReport(results);
   console.log(`\nAudit complete! Successfully audited and wrote reports for ${results.length} sources.`);
 }
 
-run();
+process.on('unhandledRejection', (err) => console.error('Worker unhandled rejection:', err));
+process.on('uncaughtException', (err) => console.error('Worker uncaught exception:', err));
+
+run().catch(err => {
+  console.error("FATAL ERROR in run():", err);
+});
