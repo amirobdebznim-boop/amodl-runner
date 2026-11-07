@@ -2388,4 +2388,16 @@ mod tests {
         assert_eq!(detect_image_ext(b"RIFF\x00\x00\x00\x00WEBPVP8 "), Some(".webp"));
         assert_eq!(detect_image_ext(b"\x00\x00\x00\x1cftypavif\x00\x00"), Some(".avif"));
     }
+
+    #[tokio::test]
+    async fn test_extract_hipmh_pages_live() {
+        let tmp = tempfile::tempdir().unwrap();
+        let url = "https://reader.hipmh.top/chapter/bToxMDkzOC1jOjE4MDA4Nw-MTA5Mzg6MTI2LjAw";
+        let pages = extract_hipmh_pages(url, tmp.path()).await;
+        assert_eq!(pages.len(), 165);
+        match &pages[0] {
+            PageItem::Single(u) => assert!(u.starts_with("https://hip-tx-1.s3imgs.top/")),
+            _ => panic!("Expected PageItem::Single"),
+        }
+    }
 }
