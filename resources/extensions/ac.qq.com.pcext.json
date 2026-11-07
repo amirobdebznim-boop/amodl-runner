@@ -1,0 +1,17 @@
+{
+  "id": "ac.qq.com",
+  "name": "Tencent AC",
+  "lang": "zh",
+  "version": "1.0.0",
+  "baseUrl": "https://ac.qq.com",
+  "kind": "acqq",
+  "nsfw": false,
+  "config": {
+    "note": "Tencent AC reader — pages via DATA+nonce splice decrypt; static HTML for listing/details/chapters. Scraper-based for speed."
+  },
+  "popular": { "url": "", "item_selector": "", "title_selector": "", "url_selector": "" },
+  "search": { "url": "", "item_selector": "", "title_selector": "", "url_selector": "" },
+  "details": { "url": "", "title_selector": "" },
+  "chapters": { "url": "", "item_selector": "", "name_selector": "", "url_selector": "" },
+  "pages": { "url": "", "image_selector": "" }
+}

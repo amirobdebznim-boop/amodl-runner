@@ -1,0 +1,20 @@
+{
+  "id": "baozimh.org",
+  "name": "Baozimh",
+  "lang": "zh",
+  "version": "3.0.0",
+  "baseUrl": "https://baozimh.org",
+  "kind": "baozi",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 AmoDL/0.3",
+  "nsfw": false,
+  "config": {
+    "imageHost": "https://c-nd2-1.6wm.top"
+  },
+
+  "popular": { "url": "{baseUrl}/", "item_selector": "_api" },
+  "latest": { "url": "{baseUrl}/", "item_selector": "_api" },
+  "search": { "url": "{baseUrl}/?q={query}", "item_selector": "_api" },
+  "details": { "url": "{mangaUrl}" },
+  "chapters": { "url": "{mangaUrl}", "item_selector": "_api" },
+  "pages": { "url": "{chapterUrl}", "image_selector": "_api" }
+}

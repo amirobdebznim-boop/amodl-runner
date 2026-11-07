@@ -1,0 +1,34 @@
+{
+  "id": "g-mh.org",
+  "name": "GoDa Manga (关耳)",
+  "lang": "zh",
+  "version": "1.0.0",
+  "baseUrl": "https://m.g-mh.org",
+  "kind": "baozi",
+  "_note": "A/B 2026-09-30: kept baozi over goda. Both yield identical popular (18 items on /hots/page/1), but chapters differs: baozi returns the full list (750 chapters for wuliandianfeng-pikapi via data-mid API + HTML merge) while goda returns empty (its chapter list is JS-injected and needs a solver render). g-mh.org shares the baozi/GoDa template family (reader CDN *.g-mh.online), so the baozi engine fits.",
+  "user_agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/130.0 Mobile Safari/537.36",
+  "nsfw": false,
+  "popular": {
+    "url": "{baseUrl}/hots/page/1",
+    "item_selector": "_api"
+  },
+  "latest": {
+    "url": "{baseUrl}/dub/page/1",
+    "item_selector": "_api"
+  },
+  "search": {
+    "url": "{baseUrl}/s/{query}",
+    "item_selector": "_api"
+  },
+  "details": {
+    "url": "{mangaUrl}"
+  },
+  "chapters": {
+    "url": "{mangaUrl}",
+    "item_selector": "_api"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "_api"
+  }
+}

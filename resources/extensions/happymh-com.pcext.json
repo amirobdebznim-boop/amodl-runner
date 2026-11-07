@@ -1,0 +1,57 @@
+{
+  "id": "happymh.com",
+  "name": "嗨皮漫画 HappyMH",
+  "lang": "zh",
+  "version": "3.0.0",
+  "baseUrl": "https://www.happymh.vip",
+  "kind": "html",
+  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+  "nsfw": true,
+  "_note": "happymh.com DROPPED ITS DNS — the site moved to www.happymh.vip (same 嗨皮漫画, new theme). Fully static: listings SSR on the homepage (热门推荐 = popular, 最近更新 = the first .box, isolated via body > div.box:nth-of-type(3)), search at /search/index?keywords=, detail at /manhua/{id}.html with SSR chapter list, reader SSRs img.lazyimg. NOTE: happymh.cc is a squatter ('我們不是嗨皮漫畫') — do not use. Chapters list oldest-first in the DOM; chapter numbers come from the 第N話 names.",
+  "popular": {
+    "url": "{baseUrl}/",
+    "item_selector": "section.box2 ul.img-list li a[href^='/manhua/']",
+    "title_selector": "h3 || @title",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "latest": {
+    "url": "{baseUrl}/",
+    "item_selector": "body > div.box:nth-of-type(3) ul.img-list li a[href^='/manhua/']",
+    "title_selector": "h3 || @title",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "search": {
+    "url": "{baseUrl}/search/index?keywords={query}",
+    "item_selector": "a.weui-media-box[href^='/manhua/']",
+    "title_selector": "h3 || @title",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "details": {
+    "url": "{mangaUrl}",
+    "title_selector": "h1 || meta[property='og:title']@content",
+    "description_selector": "div.down-title",
+    "thumbnail_selector": "div.detail-pic img",
+    "thumbnail_attr": "src"
+  },
+  "chapters": {
+    "url": "{mangaUrl}",
+    "item_selector": "div.video_list a[href^='/manhua/capter/']",
+    "name_selector": "@title",
+    "url_selector": "",
+    "url_attr": "href"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "img.lazyimg",
+    "image_attr": "src"
+  }
+}

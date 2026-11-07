@@ -1,0 +1,64 @@
+{
+  "id": "kaynscan.org",
+  "name": "Kayn Scan",
+  "lang": "en",
+  "version": "1.2.0",
+  "baseUrl": "https://kaynscans.com",
+  "kind": "html",
+  "nsfw": false,
+  "popular": {
+    "url": "{baseUrl}/series?page={page}",
+    "item_selector": "a[href*='/series/']:has(img)",
+    "title_selector": "img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "search": {
+    "url": "{baseUrl}/series?page={page}&query={query}",
+    "item_selector": "a[href*='/series/']:has(img)",
+    "title_selector": "img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "details": {
+    "url": "{mangaUrl}",
+    "title_selector": "meta[property='og:title']@content || h1",
+    "description_selector": "meta[property='og:description']@content",
+    "thumbnail_selector": "div[aria-label*='cover' i] img || div[class*='aspect-'] img || img[src*='uploads%2Fapi%2F'] || img[src*='/uploads/api/'] || meta[property='og:image']@content",
+    "thumbnail_attr": "src"
+  },
+  "chapters": {
+    "url": "{mangaUrl}",
+    "item_selector": "a[href*='/chapter/']",
+    "name_selector": "button || span",
+    "url_selector": "",
+    "url_attr": "href",
+    "locked_selector": "svg[class*='lucide-lock']"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "_via_ajax_pages"
+  },
+  "config": {
+    "alt_urls": [
+      "https://kaynscans.com",
+      "https://kaynscan.org"
+    ],
+    "ajax_pages": {
+      "id_rx": "\\\\\"chapter\\\\\":\\{\\\\\"id\\\\\":\\\\\"([a-z0-9-]+)\\\\\"",
+      "url": "{baseUrl}/api/chapters/page-urls?chapterId={id}",
+      "items": "pages",
+      "image_field": "imageUrl",
+      "strip_join": {
+        "parts": "strips",
+        "url": "imageUrl",
+        "order": "xOffsetPct"
+      }
+    },
+    "note": "domain moved from kaynscan.org. chapter ids come from the reader page's embedded RSC; page urls via /api/chapters/page-urls. Series page server-renders only the latest chapters (older ones load client-side), so the chapter list can be shorter than the site's full list."
+  }
+}

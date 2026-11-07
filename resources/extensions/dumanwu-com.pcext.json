@@ -1,0 +1,60 @@
+{
+  "id": "dumanwu.com",
+  "name": "读漫屋 Dumanwu",
+  "lang": "zh",
+  "version": "1.0.0",
+  "baseUrl": "https://www.dumanwu.com",
+  "kind": "html",
+  "nsfw": false,
+  "config": {
+    "render": true,
+    "searchPostField": "k",
+    "note": "qTcms Chinese reader — manga ids are JS-encoded, reader images are delivered via a signed /read_s request. Static scraping is blocked; requires a CDP-capable Chromium (Settings → Network: point cdp_url at any Chrome/Chromium started with --remote-debugging-port, or enable auto-launch) that runs the site's JS, handles cookies and signing, and exposes the rendered images. No Cloudflare/anti-bot involved — plain rendering is enough. Search is a client-side `<form method=post>` (jQuery `StandardPost('/s', k)`), not a GET query string — hence `searchPostField`."
+  },
+  "popular": {
+    "item_selector": "div.likedata",
+    "title_selector": ".le-t || img@alt",
+    "url_selector": ".likeimg a",
+    "url_attr": "href",
+    "thumbnail_selector": ".likeimg img",
+    "thumbnail_attr": "data-src",
+    "url": "{baseUrl}/rank/{page}"
+  },
+  "latest": {
+    "item_selector": "div.likedata",
+    "title_selector": ".le-t || img@alt",
+    "url_selector": ".likeimg a",
+    "url_attr": "href",
+    "thumbnail_selector": ".likeimg img",
+    "thumbnail_attr": "data-src",
+    "url": "{baseUrl}/sort/{page}"
+  },
+  "search": {
+    "item_selector": "div.itemnar",
+    "title_selector": "p.title a",
+    "url_selector": "p.title a",
+    "url_attr": "href",
+    "thumbnail_selector": "div.book img",
+    "thumbnail_attr": "data-src",
+    "url": "{baseUrl}/s"
+  },
+  "details": {
+    "url": "{mangaUrl}",
+    "title_selector": "h1 || .comic-title || meta[property='og:title']@content",
+    "description_selector": ".comic-intro || .intro",
+    "thumbnail_selector": "meta[property='og:image']@content || .cartoon-poster",
+    "thumbnail_attr": "content"
+  },
+  "chapters": {
+    "url": "{mangaUrl}",
+    "item_selector": "div.chapter-list a, ul.chapter a, a[href*='.html']",
+    "name_selector": "li || ",
+    "url_selector": "",
+    "url_attr": "href"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "img[src*='ecombdimg'], #cp_img img, .comiclist img, .chapter-content img, #images img, img.lazy",
+    "image_attr": "src"
+  }
+}

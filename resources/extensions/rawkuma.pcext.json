@@ -1,0 +1,65 @@
+{
+  "id": "rawkuma.net",
+  "name": "Rawkuma (Raw 日本語)",
+  "lang": "ja",
+  "version": "1.0.0",
+  "baseUrl": "https://rawkuma.net",
+  "kind": "html",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 AmoDL/0.3",
+  "nsfw": false,
+  "popular": {
+    "url": "{baseUrl}/manga/page/{page}/",
+    "item_selector": "#search-results a[href*='/manga/']:has(img):not([href*='chapter'])",
+    "title_selector": "img@alt || h1",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "latest": {
+    "url": "{baseUrl}/manga/page/{page}/",
+    "item_selector": "#search-results a[href*='/manga/']:has(img):not([href*='chapter'])",
+    "title_selector": "img@alt || h1",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "search": {
+    "url": "{baseUrl}/wp-admin/admin-ajax.php?nonce={nonce}&action=search",
+    "item_selector": "a[href*='/manga/']:has(img)",
+    "title_selector": "h3 || img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "details": {
+    "url": "{mangaUrl}",
+    "title_selector": "h1[itemprop='name']",
+    "description_selector": "div.hidden p.p-4",
+    "thumbnail_selector": "img.wp-post-image",
+    "thumbnail_attr": "src"
+  },
+  "chapters": {
+    "url": "{mangaUrl}",
+    "item_selector": "#chapter-list a[href*='/chapter-']",
+    "name_selector": "span",
+    "url_selector": "",
+    "url_attr": "href",
+    "date_selector": "time@datetime"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "section[data-image-data] img",
+    "image_attr": "src"
+  },
+  "config": {
+    "searchPostField": "query",
+    "searchPostNonce": {
+      "url": "{baseUrl}/",
+      "regex": "admin-ajax\\.php\\?nonce=([a-f0-9]+)"
+    },
+    "note": "search POSTs with a WordPress nonce auto-fetched from the homepage on every search (config.searchPostNonce). Browse/chapters/pages are nonce-free."
+  }
+}

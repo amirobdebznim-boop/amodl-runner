@@ -1,0 +1,56 @@
+{
+  "id": "mangabuff.ru",
+  "name": "MangaBuff",
+  "lang": "en",
+  "version": "1.0.1",
+  "baseUrl": "https://mangabuff.ru",
+  "kind": "html",
+  "nsfw": false,
+  "config": {},
+  "popular": {
+    "url": "{baseUrl}/manga",
+    "item_selector": "a.cards__item, a[href*='/manga/']:has(img)",
+    "title_selector": ".cards__name || img@alt || .tt || h3 || a@title",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": ".cards__img",
+    "thumbnail_attr": "bg"
+  },
+  "latest": {
+    "url": "{baseUrl}/manga",
+    "item_selector": "a.cards__item, a[href*='/manga/']:has(img)",
+    "title_selector": ".cards__name || img@alt || .tt || h3 || a@title",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": ".cards__img",
+    "thumbnail_attr": "bg"
+  },
+  "search": {
+    "url": "{baseUrl}/?s={query}",
+    "item_selector": "a.cards__item, a[href*='/manga/']:has(img)",
+    "title_selector": ".cards__name || img@alt || .tt || h3 || a@title",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": ".cards__img",
+    "thumbnail_attr": "bg"
+  },
+  "details": {
+    "url": "{mangaUrl}",
+    "title_selector": "meta[property='og:title']@content || h1 || .entry-title",
+    "description_selector": "meta[property='og:description']@content",
+    "thumbnail_selector": "meta[property='og:image']@content",
+    "thumbnail_attr": "content"
+  },
+  "chapters": {
+    "url": "{mangaUrl}",
+    "item_selector": "a.chapters__item",
+    "name_selector": ".chapters__value || .chapters__name",
+    "url_selector": "",
+    "url_attr": "href"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "div.reader__item img",
+    "image_attr": "src"
+  }
+}

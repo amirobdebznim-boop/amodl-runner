@@ -1,0 +1,9 @@
+{
+  "id": "elftoon.com",
+  "name": "ElfToon",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://elftoon.net",
+  "kind": "valirscans",
+  "nsfw": false
+}

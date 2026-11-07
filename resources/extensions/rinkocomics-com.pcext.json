@@ -1,0 +1,30 @@
+{
+  "id": "rinkocomics.com",
+  "name": "Rinko Comics",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://rinkocomics.com",
+  "kind": "rinko",
+  "nsfw": false,
+  "_note": "WordPress (comicworld theme). Port of the Keiyoushi RinkoComics extension (Apache-2.0): HTML listing + admin-ajax load_more_chapters tail. Paid chapters carry a 🔒 prefix and are refused at pages() time — never purchased/unlocked.",
+  "popular": {
+    "url": "{baseUrl}/"
+  },
+  "latest": {
+    "url": "{baseUrl}/comic/?sort=newest"
+  },
+  "search": {
+    "url": "{baseUrl}/comic/?post_type=comic&s={query}"
+  },
+  "details": {
+    "url": "{mangaUrl}"
+  },
+  "chapters": {
+    "url": "{mangaUrl}"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "img.chapter-image",
+    "image_attr": "src"
+  }
+}

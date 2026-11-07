@@ -1,0 +1,65 @@
+{
+  "id": "demonicscans.org",
+  "name": "Demonic Scans",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://demonicscans.org",
+  "kind": "html",
+  "user_agent": "AmoDL/0.1",
+  "nsfw": false,
+  "popular": {
+    "url": "{baseUrl}/advanced.php?list={page}&genre=",
+    "next_page": {
+      "selector": "a:-soup-contains(Next)",
+      "mode": "selector"
+    },
+    "item_selector": "div.advanced-element",
+    "title_selector": "a",
+    "url_selector": "a",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "latest": {
+    "url": "{baseUrl}/lastupdates.php?list={page}",
+    "item_selector": "div.updates-element",
+    "title_selector": "a.title-update",
+    "url_selector": "a.title-update",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "search": {
+    "url": "{baseUrl}/search.php?manga={query}",
+    "item_selector": "a[href*='/manga/']",
+    "title_selector": "div.seach-right div || div.seach-right || ",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "details": {
+    "url": "{mangaUrl}",
+    "title_selector": "h1.big-fat-titles",
+    "description_selector": "div.white-font p",
+    "author_selector": "li:-soup-contains(Author) span",
+    "genre_selector": "div.genres-list a",
+    "status_selector": "li:-soup-contains(Status) span",
+    "thumbnail_selector": "img.imgdesktop",
+    "thumbnail_attr": "src"
+  },
+  "chapters": {
+    "url": "{mangaUrl}",
+    "item_selector": "div#chapters-list a",
+    "name_selector": "",
+    "url_selector": "",
+    "url_attr": "href",
+    "date_selector": "span.chapter-date",
+    "url_template": "{baseUrl}/title/{mangaSlug}/chapter/{number}/1"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "img.imgholder",
+    "image_attr": "src"
+  }
+}

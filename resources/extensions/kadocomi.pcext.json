@@ -1,0 +1,64 @@
+{
+  "id": "kadocomi.jp",
+  "name": "カドコミ KadoComi (Comic Walker)",
+  "lang": "ja",
+  "version": "1.0.0",
+  "baseUrl": "https://comic-walker.com",
+  "kind": "kadocomi",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 AmoDL/0.3",
+  "nsfw": false,
+
+  "popular": {
+    "url": "{baseUrl}/api/ranking?limit=24&offset={offset}",
+    "item_selector": "result[]",
+    "title_selector": "title",
+    "url_selector": "code",
+    "thumbnail_selector": "thumbnail",
+    "thumbnail_attr": "src"
+  },
+
+  "latest": {
+    "url": "{baseUrl}/api/series/new?limit=24&offset={offset}",
+    "item_selector": "result[]",
+    "title_selector": "title",
+    "url_selector": "code",
+    "thumbnail_selector": "thumbnail",
+    "thumbnail_attr": "src"
+  },
+
+  "search": {
+    "url": "{baseUrl}/api/search/keywords?keyword={query}&limit=24&offset={offset}&sortBy=popularity",
+    "item_selector": "result[]",
+    "title_selector": "title",
+    "url_selector": "code",
+    "thumbnail_selector": "thumbnail",
+    "thumbnail_attr": "src"
+  },
+
+  "details": {
+    "url": "{baseUrl}/api/contents/details/work?workCode={mangaUrl}",
+    "title_selector": "work.title",
+    "description_selector": "work.summary",
+    "author_selector": "work.authors[0].name",
+    "artist_selector": "work.authors[1].name || work.authors[0].name",
+    "genre_selector": "work.tags[].name",
+    "status_selector": "work.serializationStatus",
+    "thumbnail_selector": "work.thumbnail",
+    "thumbnail_attr": "src"
+  },
+
+  "chapters": {
+    "url": "{baseUrl}/api/contents/details/work?workCode={mangaUrl}",
+    "item_selector": "latestEpisodes.result[]",
+    "name_selector": "title",
+    "url_selector": "id",
+    "number_selector": "internal.episodeNo",
+    "date_selector": "updateDate"
+  },
+
+  "pages": {
+    "url": "{baseUrl}/api/contents/viewer?episodeId={chapterUrl}&imageSizeType=width%3A1284",
+    "image_selector": "manuscripts[].drmImageUrl",
+    "image_attr": "src"
+  }
+}

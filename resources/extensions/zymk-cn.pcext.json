@@ -1,0 +1,18 @@
+{
+  "id": "zymk.cn",
+  "name": "知音漫客 Zymk",
+  "lang": "zh",
+  "version": "1.0.0",
+  "baseUrl": "https://www.zymk.cn",
+  "kind": "zymk",
+  "nsfw": false,
+  "config": {
+    "note": "知音漫客 reader. Page URLs synthesised client-side from embedded domain/high/start_var/end_var globals; mhpic CDN hot-link protected (Referer set natively)."
+  },
+
+  "popular": { "url": "", "item_selector": "", "title_selector": "", "url_selector": "" },
+  "search":  { "url": "", "item_selector": "", "title_selector": "", "url_selector": "" },
+  "details": { "url": "", "title_selector": "" },
+  "chapters":{ "url": "", "item_selector": "", "name_selector": "", "url_selector": "" },
+  "pages":   { "url": "", "image_selector": "" }
+}

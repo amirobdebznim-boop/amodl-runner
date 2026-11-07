@@ -1,0 +1,30 @@
+{
+  "id": "lunatoons.net",
+  "name": "Luna Toons",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://lunatoons.net",
+  "kind": "lunatoons",
+  "nsfw": true,
+  "_note": "Custom PHP site (htmx partials). Listings/paging/search/chapter-list are JSON endpoints returning HTML fragments; series metadata comes from the JSON-LD @type:\"Book\" node. Pages are plain <img class=\"reader-page\"> AVIF on cdn.meowing.org — no descramble, no referer required. Paid chapters carry a 🔒 prefix + #lock suffix and are refused at pages() time — never purchased/unlocked.",
+  "popular": {
+    "url": "{baseUrl}/?browse=1&sort=popular"
+  },
+  "latest": {
+    "url": "{baseUrl}/recently-updated"
+  },
+  "search": {
+    "url": "{baseUrl}/?_ajax=search&q={query}"
+  },
+  "details": {
+    "url": "{mangaUrl}"
+  },
+  "chapters": {
+    "url": "{baseUrl}/?_chapters_html=1&series_slug={slug}"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "img.reader-page",
+    "image_attr": "src"
+  }
+}

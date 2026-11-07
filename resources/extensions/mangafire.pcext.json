@@ -1,0 +1,62 @@
+{
+  "id": "mangafire.to",
+  "name": "MangaFire",
+  "lang": "en",
+  "version": "1.3.1",
+  "baseUrl": "https://mangafire.to",
+  "kind": "html",
+  "nsfw": false,
+  "config": {
+    "render": true,
+    "note": "MangaFire relaunched as a client-side-only React SPA — a hard page load to ANY path (old /filter, /genre/..., even a hard reload of /browse itself before hydration) serves the same static homepage shell; real listing/detail/reader content only appears after the app's own JS hydrates and fetches it. Confirmed live (2026-07): /filter is gone, replaced by /browse?types=...&sort=...; chapters list and reader pages are virtualized (swiper), so a single render() pass only captures the currently-mounted window (~20 chapters near the top, ~2-4 reader pages), not the full set — a real limitation of this engine (one-shot render, no scroll/paginate-through), not a selector bug."
+  },
+  "popular": {
+    "url": "{baseUrl}/browse?types=manga&sort=views_7d:desc&page={page}",
+    "item_selector": "a.title-rows__link",
+    "title_selector": ".title-row-card__title",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": ".title-row-card__poster img",
+    "thumbnail_attr": "src"
+  },
+  "latest": {
+    "url": "{baseUrl}/browse?types=manga&sort=chapter_updated_at:desc&page={page}",
+    "item_selector": "a.title-rows__link",
+    "title_selector": ".title-row-card__title",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": ".title-row-card__poster img",
+    "thumbnail_attr": "src"
+  },
+  "search": {
+    "url": "{baseUrl}/browse?keyword={query}&page={page}",
+    "item_selector": "a.title-rows__link",
+    "title_selector": ".title-row-card__title",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": ".title-row-card__poster img",
+    "thumbnail_attr": "src"
+  },
+  "details": {
+    "url": "{mangaUrl}",
+    "title_selector": "h1.title-detail__title",
+    "description_selector": ".title-detail__synopsis",
+    "author_selector": ".title-detail__credits a.title-detail__credit-link",
+    "genre_selector": "a.title-detail__tag",
+    "thumbnail_selector": ".title-detail__poster img",
+    "thumbnail_attr": "src"
+  },
+  "chapters": {
+    "url": "{mangaUrl}",
+    "item_selector": "div.title-detail__row",
+    "name_selector": ".title-detail__row-num",
+    "url_selector": "a.title-detail__row-link",
+    "url_attr": "href",
+    "date_selector": ".title-detail__row-date"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "img.reader-img",
+    "image_attr": "src"
+  }
+}

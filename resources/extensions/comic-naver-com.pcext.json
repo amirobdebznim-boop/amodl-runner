@@ -1,0 +1,18 @@
+{
+  "id": "comic.naver.com",
+  "name": "네이버 웹툰 Naver Webtoon",
+  "lang": "ko",
+  "version": "1.0.0",
+  "baseUrl": "https://comic.naver.com",
+  "kind": "naver",
+  "nsfw": false,
+  "config": {
+    "note": "Naver Webtoon. Server-rendered mobile pages; CDN images (image-comic.pstatic.net) require Referer: comic.naver.com — handled natively."
+  },
+
+  "popular": { "url": "", "item_selector": "", "title_selector": "", "url_selector": "" },
+  "search":  { "url": "", "item_selector": "", "title_selector": "", "url_selector": "" },
+  "details": { "url": "", "title_selector": "" },
+  "chapters":{ "url": "", "item_selector": "", "name_selector": "", "url_selector": "" },
+  "pages":   { "url": "", "image_selector": "" }
+}

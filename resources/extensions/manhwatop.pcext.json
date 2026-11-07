@@ -1,0 +1,58 @@
+{
+  "id": "manhwatop.com",
+  "name": "ManhwaTop",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://manhwatop.com",
+  "kind": "html",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 AmoDL/0.3",
+  "nsfw": false,
+  "popular": {
+    "url": "{baseUrl}/manga/page/{page}/?m_orderby=trending",
+    "item_selector": "div.page-item-detail",
+    "title_selector": "h3 a || div.post-title a || a@title",
+    "url_selector": "h3 a, div.post-title a, a[href*='/manga/']",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "data-src"
+  },
+  "latest": {
+    "url": "{baseUrl}/manga/page/{page}/?m_orderby=latest",
+    "item_selector": "div.page-item-detail",
+    "title_selector": "h3 a || div.post-title a || a@title",
+    "url_selector": "h3 a, div.post-title a, a[href*='/manga/']",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "data-src"
+  },
+  "search": {
+    "url": "{baseUrl}/page/{page}/?s={query}&post_type=wp-manga",
+    "item_selector": "div.c-tabs-item__content, div.page-item-detail",
+    "title_selector": "h3 a || div.post-title a || a@title",
+    "url_selector": "h3 a, div.post-title a, a[href*='/manga/']",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "data-src"
+  },
+  "details": {
+    "url": "{mangaUrl}",
+    "title_selector": "div.post-title h1 || h1",
+    "description_selector": "div.summary__content, div.description-summary",
+    "author_selector": "div.author-content a",
+    "genre_selector": "div.genres-content a",
+    "thumbnail_selector": "div.summary_image img",
+    "thumbnail_attr": "data-src"
+  },
+  "chapters": {
+    "url": "{mangaUrl}",
+    "item_selector": "li.wp-manga-chapter a, li.chapter-item a, div.chapter-item a",
+    "name_selector": "",
+    "url_selector": "",
+    "url_attr": "href"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "div.reading-content img, div.page-break img, img.wp-manga-chapter-img",
+    "image_attr": "data-src"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "id": "mangadex-ja",
+  "name": "MangaDex 日本語 (Raw)",
+  "lang": "ja",
+  "version": "1.0.0",
+  "baseUrl": "https://api.mangadex.org",
+  "kind": "json",
+  "user_agent": "AmoDL/0.3 (+https://github.com/amodl)",
+  "nsfw": false,
+
+  "popular": {
+    "url": "{baseUrl}/manga?order[followedCount]=desc&limit=24&offset={offset}&availableTranslatedLanguage[]=ja&hasAvailableChapters=true&includes[]=cover_art",
+    "item_selector": "data[]",
+    "title_selector": "attributes.title.ja || attributes.title.ja-ro || attributes.title.en || id",
+    "url_selector": "id"
+  },
+
+  "latest": {
+    "url": "{baseUrl}/manga?order[latestUploadedChapter]=desc&limit=24&offset={offset}&availableTranslatedLanguage[]=ja&hasAvailableChapters=true&includes[]=cover_art",
+    "item_selector": "data[]",
+    "title_selector": "attributes.title.ja || attributes.title.ja-ro || attributes.title.en || id",
+    "url_selector": "id"
+  },
+
+  "search": {
+    "url": "{baseUrl}/manga?title={query}&limit=24&offset={offset}&availableTranslatedLanguage[]=ja&includes[]=cover_art",
+    "item_selector": "data[]",
+    "title_selector": "attributes.title.ja || attributes.title.ja-ro || attributes.title.en || id",
+    "url_selector": "id"
+  },
+
+  "details": {
+    "url": "{baseUrl}/manga/{mangaUrl}?includes[]=cover_art&includes[]=author&includes[]=artist",
+    "title_selector": "data.attributes.title.ja || data.attributes.title.ja-ro",
+    "description_selector": "data.attributes.description.ja",
+    "status_selector": "data.attributes.status"
+  },
+
+  "chapters": {
+    "url": "{baseUrl}/manga/{mangaUrl}/feed?translatedLanguage[]=ja&order[chapter]=desc&limit=200&includeFutureUpdates=0&includeExternalUrl=0",
+    "item_selector": "data[]",
+    "name_selector": "attributes.title || attributes.chapter",
+    "url_selector": "id",
+    "number_selector": "attributes.chapter",
+    "date_selector": "attributes.publishAt"
+  },
+
+  "pages": {
+    "url": "{baseUrl}/at-home/server/{chapterUrl}",
+    "image_selector": "chapter.data[]",
+    "image_attr": ""
+  }
+}

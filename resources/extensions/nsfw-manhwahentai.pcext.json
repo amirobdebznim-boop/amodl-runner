@@ -1,0 +1,56 @@
+{
+  "baseUrl": "https://manhwahentai.net",
+  "_note": "search unsupported — site exposes no search endpoint (manhwahentai.net currently serves a host error page); search section removed so the query is not silently dropped",
+  "chapters": {
+    "item_selector": "a[href*='/capitulo-']",
+    "name_selector": "",
+    "url": "{mangaUrl}",
+    "url_attr": "href",
+    "url_selector": ""
+  },
+  "config": {
+    "pagesApi": {
+      "url": "{baseUrl}/api/manga/{mangaSlug}/chapters/{chapterSlug}",
+      "items": "data.pages",
+      "image_field": "image_url"
+    }
+  },
+  "details": {
+    "description_selector": "div.summary__content, div.description-summary",
+    "genre_selector": "",
+    "thumbnail_attr": "content",
+    "thumbnail_selector": "meta[property='og:image']",
+    "title_selector": "h1",
+    "url": "{mangaUrl}"
+  },
+  "id": "manhwahentai.to",
+  "kind": "html",
+  "lang": "es",
+  "latest": {
+    "item_selector": "a[href*='/manga/']:has(img)",
+    "thumbnail_attr": "src",
+    "thumbnail_selector": "img",
+    "title_selector": "img@alt",
+    "url": "{baseUrl}/",
+    "url_attr": "href",
+    "url_selector": ""
+  },
+  "name": "Manhwa Hentai",
+  "nsfw": true,
+  "pages": {
+    "image_attr": "src",
+    "image_selector": "div.reading-content img, main img, div img",
+    "url": "{chapterUrl}"
+  },
+  "popular": {
+    "item_selector": "a[href*='/manga/']:has(img)",
+    "thumbnail_attr": "src",
+    "thumbnail_selector": "img",
+    "title_selector": "img@alt",
+    "url": "{baseUrl}/",
+    "url_attr": "href",
+    "url_selector": ""
+  },
+  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+  "version": "1.2.0"
+}

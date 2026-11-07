@@ -1,0 +1,11 @@
+{
+  "id": "bomtoon.com",
+  "name": "Bomtoon 봄툰",
+  "lang": "ko",
+  "version": "1.0.0",
+  "baseUrl": "https://www.bomtoon.com",
+  "kind": "bomtoon",
+  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+  "nsfw": true,
+  "_note": "Korean premium webtoon platform (romance/BL flagship). Fully engine-driven: search API + __NEXT_DATA__ SSR on /detail/{alias} and /viewer/{alias}/{epAlias}. popular/latest = search API ranked sorts over the romance corpus (the shop has no anonymous listing API). Paid episodes return NOT_LOGIN_USER — only free/preview/open episodes download; the engine reports those cleanly instead of failing."
+}

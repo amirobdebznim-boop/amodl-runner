@@ -1,0 +1,18 @@
+{
+  "id": "allmanga.to",
+  "name": "AllManga",
+  "lang": "en",
+  "version": "2.0.0",
+  "baseUrl": "https://allmanga.to",
+  "kind": "allmanga",
+  "nsfw": false,
+  "config": {
+    "note": "GraphQL API at api.allanime.day; encrypted chapter-pages payload decrypted natively (AES-256-GCM). No CDP/render needed."
+  },
+
+  "popular": { "url": "", "item_selector": "", "title_selector": "", "url_selector": "" },
+  "search":  { "url": "", "item_selector": "", "title_selector": "", "url_selector": "" },
+  "details": { "url": "", "title_selector": "" },
+  "chapters":{ "url": "", "item_selector": "", "name_selector": "", "url_selector": "" },
+  "pages":   { "url": "", "image_selector": "" }
+}

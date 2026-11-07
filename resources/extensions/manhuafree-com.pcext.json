@@ -1,0 +1,9 @@
+{
+  "id": "manhuafree.com",
+  "name": "G站漫畫 ManhuaFree",
+  "lang": "zh",
+  "version": "1.0.0",
+  "baseUrl": "https://manhuafree.com",
+  "kind": "baozi",
+  "nsfw": false
+}

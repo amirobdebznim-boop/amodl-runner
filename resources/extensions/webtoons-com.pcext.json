@@ -1,0 +1,18 @@
+{
+  "id": "webtoons.com",
+  "name": "WEBTOON",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://www.webtoons.com",
+  "kind": "webtoons",
+  "nsfw": false,
+  "config": {
+    "note": "Official WEBTOON. Viewer images (#_imageList img@data-url) require Referer: webtoons.com — handled natively."
+  },
+
+  "popular": { "url": "", "item_selector": "", "title_selector": "", "url_selector": "" },
+  "search":  { "url": "", "item_selector": "", "title_selector": "", "url_selector": "" },
+  "details": { "url": "", "title_selector": "" },
+  "chapters":{ "url": "", "item_selector": "", "name_selector": "", "url_selector": "" },
+  "pages":   { "url": "", "image_selector": "" }
+}
