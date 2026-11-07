@@ -475,6 +475,30 @@ async fn extract_hipmh_pages(chapter_url: &str, scripts_dir: &Path) -> Vec<PageI
       }
     }
 
+    const D = (40503 << 16 | 31153) >>> 0, R = (34283 << 16 | 51819) >>> 0;
+    function q(t) {
+      if (t == null) return null;
+      const l = Number(t);
+      return !Number.isFinite(l) || l < 0 || l > 4294967295 ? null : Math.floor(l) >>> 0;
+    }
+    function removeHoneypot(t, l, u) {
+      if (!Array.isArray(t) || t.length <= 0) return t;
+      const d = t.length, m = q(l), g = q(u);
+      if (m === null || g === null) return t;
+      try {
+        const L = BigInt(g) * BigInt(D), v = BigInt(d) * BigInt(R);
+        let b = Number((L ^ v) % BigInt(d));
+        b < 0 && (b += d);
+        const h = Number(BigInt(m) ^ BigInt(b));
+        if (h < 0 || h >= d) return t;
+        const c = [...t];
+        c.splice(h, 1);
+        return c;
+      } catch (e) {
+        return t;
+      }
+    }
+
     async function run() {
       const chapterUrl = process.env.CHAPTER_URL;
       const userAgent = process.env.USER_AGENT;
@@ -529,7 +553,8 @@ async fn extract_hipmh_pages(chapter_url: &str, scripts_dir: &Path) -> Vec<PageI
         return [];
       }
       const decoded = await decodeFn(data.data.images);
-      return decoded.map(p => p.startsWith('http') ? p : imgBase + p);
+      const cleaned = removeHoneypot(decoded, data.data.order_id, data.data.sid);
+      return cleaned.map(p => p.startsWith('http') ? p : imgBase + p);
     }
     run().then(res => console.log(JSON.stringify(res))).catch(err => {
       console.error('HipMH decode exception:', err);
@@ -2400,7 +2425,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let url = "https://reader.hipmh.top/chapter/bToxMDkzOC1jOjE4MDA4Nw-MTA5Mzg6MTI2LjAw";
         let pages = extract_hipmh_pages(url, tmp.path()).await;
-        assert_eq!(pages.len(), 165);
+        assert_eq!(pages.len(), 164);
         match &pages[0] {
             PageItem::Single(u) => assert!(u.starts_with("https://hip-cf-1.s3imgs.top/")),
             _ => panic!("Expected PageItem::Single"),
