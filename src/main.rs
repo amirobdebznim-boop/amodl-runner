@@ -492,7 +492,29 @@ async fn extract_hipmh_pages(chapter_url: &str, scripts_dir: &Path) -> Vec<PageI
         decCode = await fetch('https://reader.hipmh.top/assets/runtime/chapter-decoder.js').then(r => r.text());
       }
       const vm = require('vm');
-      const sandbox = { window: {} };
+      const win = {
+        atob: (s) => Buffer.from(s, 'base64').toString('binary'),
+        btoa: (s) => Buffer.from(s, 'binary').toString('base64'),
+        TextDecoder,
+        TextEncoder,
+      };
+      win.window = win;
+      win.self = win;
+      win.globalThis = win;
+      const sandbox = {
+        ...win,
+        window: win,
+        self: win,
+        globalThis: win,
+        atob: win.atob,
+        btoa: win.btoa,
+        TextDecoder,
+        TextEncoder,
+        Uint8Array,
+        ArrayBuffer,
+        Buffer,
+        console,
+      };
       vm.createContext(sandbox);
       vm.runInContext(decCode, sandbox, { timeout: 5000 });
       const decodeFn = sandbox.window.__cimg ? sandbox.window.__cimg.r : null;
