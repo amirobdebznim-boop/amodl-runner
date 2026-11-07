@@ -245,10 +245,18 @@ async function auditSingleSource(file) {
       overall
     };
   } catch (err) {
+    const fallbackId = String(file || "unknown").replace('.pcext.json', '');
     return {
-      file, id: file, name: file, lang: "en", baseUrl: "",
-      baseStatus: 0, baseTime: "0s",
-      modeA_status: "خطا", modeB_status: "خطا", modeB_pages: 0,
+      file: String(file || "unknown"),
+      id: fallbackId,
+      name: fallbackId,
+      lang: "en",
+      baseUrl: "",
+      baseStatus: 0,
+      baseTime: "0s",
+      modeA_status: "خطا",
+      modeB_status: "خطا",
+      modeB_pages: 0,
       overall: "warn"
     };
   }
@@ -275,7 +283,14 @@ async function run() {
   await Promise.all(Array.from({ length: concurrency }, () => worker()));
 
   const order = { ok: 0, warn: 1, blocked: 2 };
-  results.sort((a, b) => (order[a.overall] ?? 9) - (order[b.overall] ?? 9) || a.name.localeCompare(b.name));
+  results.sort((a, b) => {
+    const ordA = order[a?.overall] ?? 9;
+    const ordB = order[b?.overall] ?? 9;
+    if (ordA !== ordB) return ordA - ordB;
+    const nameA = String(a?.name || a?.id || '');
+    const nameB = String(b?.name || b?.id || '');
+    return nameA.localeCompare(nameB);
+  });
 
   fs.writeFileSync('audit_report.json', JSON.stringify(results, null, 2));
 

@@ -21,6 +21,7 @@ jobs:
 
       - name: Run Source Audit Matrix
         run: |
+          touch audit_report.md
           node scripts/audit_sources.mjs
           cat audit_report.md >> $GITHUB_STEP_SUMMARY
 
