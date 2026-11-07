@@ -479,7 +479,7 @@ async fn extract_hipmh_pages(chapter_url: &str, scripts_dir: &Path) -> Vec<PageI
       const chapterUrl = process.env.CHAPTER_URL;
       const userAgent = process.env.USER_AGENT;
       const decoderPath = process.env.DECODER_PATH;
-      const imgBase = 'https://hip-tx-1.s3imgs.top';
+      const imgBase = 'https://hip-cf-1.s3imgs.top';
       const apiHid = deriveApiHid(chapterUrl);
       if (!apiHid) {
         console.error('Failed to derive apiHid from URL:', chapterUrl);
@@ -1655,16 +1655,17 @@ fn stitch_horizontal(image_bytes_list: &[Vec<u8>]) -> Option<Vec<u8>> {
 }
 
 async fn fetch_image_bytes(client: &Client, url: &str, referer: &str) -> Option<Vec<u8>> {
+    let mut current_url = url.to_string();
     for attempt in 0..3 {
         if let Ok(res) = client
-            .get(url)
+            .get(&current_url)
             .header("User-Agent", USER_AGENT)
             .header("Referer", referer)
             .header(
                 "Accept",
                 "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
             )
-            .timeout(Duration::from_secs(15))
+            .timeout(Duration::from_secs(12))
             .send()
             .await
         {
@@ -1676,7 +1677,12 @@ async fn fetch_image_bytes(client: &Client, url: &str, referer: &str) -> Option<
                 }
             }
         }
-        tokio::time::sleep(Duration::from_millis(300 * (attempt + 1))).await;
+        if current_url.contains("hip-cf-1.s3imgs.top") {
+            current_url = current_url.replace("hip-cf-1.s3imgs.top", "hip-tx-1.s3imgs.top");
+        } else if current_url.contains("hip-tx-1.s3imgs.top") {
+            current_url = current_url.replace("hip-tx-1.s3imgs.top", "hip-cf-1.s3imgs.top");
+        }
+        tokio::time::sleep(Duration::from_millis(200 * (attempt + 1))).await;
     }
     None
 }
@@ -2396,7 +2402,7 @@ mod tests {
         let pages = extract_hipmh_pages(url, tmp.path()).await;
         assert_eq!(pages.len(), 165);
         match &pages[0] {
-            PageItem::Single(u) => assert!(u.starts_with("https://hip-tx-1.s3imgs.top/")),
+            PageItem::Single(u) => assert!(u.starts_with("https://hip-cf-1.s3imgs.top/")),
             _ => panic!("Expected PageItem::Single"),
         }
     }
