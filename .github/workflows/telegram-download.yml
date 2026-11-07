@@ -1,0 +1,145 @@
+name: Telegram Manga Downloader
+
+on:
+  workflow_dispatch:
+    inputs:
+      chat_id:
+        description: 'Telegram Chat ID'
+        required: false
+        default: '7498923934'
+        type: string
+      chapter_url:
+        description: 'Manga Chapter URL'
+        required: false
+        default: ''
+        type: string
+      manga_title:
+        description: 'Manga Title'
+        required: false
+        default: 'Manga Chapter'
+        type: string
+      chapter_label:
+        description: 'Chapter Label'
+        required: false
+        default: 'Chapter'
+        type: string
+      job_id:
+        description: 'D1 Job ID'
+        required: false
+        default: '0'
+        type: string
+      status_msg_id:
+        description: 'Status message ID to cleanup'
+        required: false
+        default: ''
+        type: string
+      archive_format:
+        description: 'Archive Format (cbz or zip)'
+        required: false
+        default: 'zip'
+        type: string
+      delivery_mode:
+        description: 'Delivery Mode (auto or link_only)'
+        required: false
+        default: 'auto'
+        type: string
+      bot_token:
+        description: 'Telegram Bot Token'
+        required: false
+        default: ''
+        type: string
+      batch_json:
+        description: 'Batch chapters JSON array'
+        required: false
+        default: ''
+        type: string
+
+concurrency:
+  group: download-${{ inputs.chat_id }}-${{ inputs.job_id }}
+  cancel-in-progress: false
+
+jobs:
+  download-and-deliver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js (for HipMH runtime decoder)
+        if: contains(inputs.chapter_url, 'hipmh')
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache precompiled telegram_downloader binary
+        id: cache-bin
+        uses: actions/cache@v4
+        with:
+          path: bin/telegram_downloader
+          key: dl-bin-${{ runner.os }}-${{ hashFiles('src/**', 'Cargo.*') }}
+
+      - name: Set up Rust toolchain
+        if: steps.cache-bin.outputs.cache-hit != 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        if: steps.cache-bin.outputs.cache-hit != 'true'
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build native binary
+        if: steps.cache-bin.outputs.cache-hit != 'true'
+        run: |
+          cargo build --release
+          mkdir -p bin
+          cp target/release/telegram_downloader bin/telegram_downloader
+
+      - name: Ensure binary permissions
+        run: chmod +x bin/telegram_downloader
+
+      - name: Run downloader
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || inputs.bot_token }}
+          DOWNLOAD_CHAT_ID: ${{ inputs.chat_id }}
+          DOWNLOAD_CHAPTER_URL: ${{ inputs.chapter_url }}
+          DOWNLOAD_TITLE: ${{ inputs.manga_title }}
+          DOWNLOAD_LABEL: ${{ inputs.chapter_label }}
+          DOWNLOAD_JOB_ID: ${{ inputs.job_id }}
+          DOWNLOAD_STATUS_MSG_ID: ${{ inputs.status_msg_id }}
+          DOWNLOAD_FORMAT: ${{ inputs.archive_format }}
+          DOWNLOAD_DELIVERY_MODE: ${{ inputs.delivery_mode }}
+          DOWNLOAD_BATCH_JSON: ${{ inputs.batch_json }}
+        run: |
+          if [ -n "$DOWNLOAD_BATCH_JSON" ] && [ "$DOWNLOAD_BATCH_JSON" != "[]" ]; then
+            echo "Running batch download from JSON..."
+            echo "$DOWNLOAD_BATCH_JSON" | jq -c '.[]' | while read -r item; do
+              URL=$(echo "$item" | jq -r '.url')
+              LABEL=$(echo "$item" | jq -r '.label')
+              JID=$(echo "$item" | jq -r '.job_id')
+              TITLE=$(echo "$item" | jq -r '.title // empty')
+              [ -z "$TITLE" ] && TITLE="$DOWNLOAD_TITLE"
+              echo "Downloading batch item: $LABEL ($URL)"
+              ./bin/telegram_downloader \
+                --chat-id "$DOWNLOAD_CHAT_ID" \
+                --chapter-url "$URL" \
+                --title "$TITLE" \
+                --label "$LABEL" \
+                --job-id "$JID" \
+                --format "$DOWNLOAD_FORMAT" \
+                --delivery-mode "$DOWNLOAD_DELIVERY_MODE" \
+                --bot-token "$TELEGRAM_BOT_TOKEN" \
+                --callback-url "https://amodl-telegram-worker.ab0li-4zmmali.workers.dev/api/download-callback" < /dev/null || echo "Batch item $LABEL ($JID) finished with non-zero exit code"
+            done
+          else
+            ./bin/telegram_downloader \
+              --chat-id "$DOWNLOAD_CHAT_ID" \
+              --chapter-url "$DOWNLOAD_CHAPTER_URL" \
+              --title "$DOWNLOAD_TITLE" \
+              --label "$DOWNLOAD_LABEL" \
+              --job-id "$DOWNLOAD_JOB_ID" \
+              --status-msg-id "$DOWNLOAD_STATUS_MSG_ID" \
+              --format "$DOWNLOAD_FORMAT" \
+              --delivery-mode "$DOWNLOAD_DELIVERY_MODE" \
+              --bot-token "$TELEGRAM_BOT_TOKEN" \
+              --callback-url "https://amodl-telegram-worker.ab0li-4zmmali.workers.dev/api/download-callback"
+          fi
