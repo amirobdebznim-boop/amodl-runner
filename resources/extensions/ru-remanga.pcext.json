@@ -7,7 +7,7 @@
   "kind": "remanga",
   "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 AmoDL/0.3",
   "nsfw": false,
-  "config": { "apiUrl": "https://api.remanga.org" },
+  "config": { "apiUrl": "https://remanga.org" },
 
   "popular": { "url": "{baseUrl}/", "item_selector": "_api" },
   "latest": { "url": "{baseUrl}/", "item_selector": "_api" },

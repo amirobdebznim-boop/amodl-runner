@@ -1,6 +1,6 @@
 {
-  "baseUrl": "https://manhwahentai.net",
-  "_note": "search unsupported — site exposes no search endpoint (manhwahentai.net currently serves a host error page); search section removed so the query is not silently dropped",
+  "baseUrl": "https://manhwahentai.me",
+  "_note": "Active domain updated to manhwahentai.me",
   "chapters": {
     "item_selector": "a[href*='/capitulo-']",
     "name_selector": "",
