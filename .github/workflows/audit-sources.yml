@@ -16,6 +16,9 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Inspect Kayn and Elftoon RSC
+        run: node scripts/inspect_kayn.mjs
+
       - name: Run Source Audit Matrix
         run: |
           node scripts/audit_sources.mjs
