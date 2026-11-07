@@ -1454,9 +1454,40 @@ async fn get_chapter_page_urls(
         }
     }
 
+    let mut target_url = chapter_url.to_string();
+    if host.contains("mgeko") && target_url.contains("/manga/") {
+        if let Some(pos) = target_url.find("/chapter-") {
+            let (manga_base, ch_part) = target_url.split_at(pos);
+            let ch_num_str = ch_part.trim_start_matches("/chapter-").trim_matches('/');
+            let all_chapters_url = format!("{manga_base}/all-chapters/");
+            if let Ok(res) = client
+                .get(&all_chapters_url)
+                .header("User-Agent", USER_AGENT)
+                .timeout(Duration::from_secs(10))
+                .send()
+                .await
+            {
+                if let Ok(html) = res.text().await {
+                    let pattern = format!("chapter-{ch_num_str}");
+                    let doc = Html::parse_document(&html);
+                    if let Ok(sel) = Selector::parse("a[href*='reader/en']") {
+                        for el in doc.select(&sel) {
+                            if let Some(href) = el.value().attr("href") {
+                                if href.contains(&pattern) {
+                                    target_url = resolve_url(&all_chapters_url, href);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let manifests = load_manifests(repo_root);
-    let manifest = find_matching_manifest(&manifests, chapter_url);
-    extract_html_pages(client, chapter_url.to_string(), manifest).await
+    let manifest = find_matching_manifest(&manifests, &target_url);
+    extract_html_pages(client, target_url, manifest).await
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2430,5 +2461,14 @@ mod tests {
             PageItem::Single(u) => assert!(u.starts_with("https://hip-cf-1.s3imgs.top/")),
             _ => panic!("Expected PageItem::Single"),
         }
+    }
+
+    #[tokio::test]
+    async fn test_mgeko_chapter_resolution_live() {
+        let client = Client::new();
+        let tmp = tempfile::tempdir().unwrap();
+        let fake_url = "https://www.mgeko.cc/manga/yooc-who-let-him-cultivate-immortality/chapter-35";
+        let pages = get_chapter_page_urls(&client, fake_url, tmp.path()).await.unwrap();
+        assert!(pages.len() >= 20, "Expected at least 20 pages from mgeko chapter 35, got {}", pages.len());
     }
 }
