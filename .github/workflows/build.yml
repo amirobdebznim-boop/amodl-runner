@@ -1,0 +1,35 @@
+name: Build and Cache Binary
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache precompiled telegram_downloader binary
+        id: cache-bin
+        uses: actions/cache@v4
+        with:
+          path: bin/telegram_downloader
+          key: dl-bin-${{ runner.os }}-${{ hashFiles('src/**', 'Cargo.*') }}
+
+      - name: Set up Rust toolchain
+        if: steps.cache-bin.outputs.cache-hit != 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        if: steps.cache-bin.outputs.cache-hit != 'true'
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build native binary
+        if: steps.cache-bin.outputs.cache-hit != 'true'
+        run: |
+          cargo build --release
+          mkdir -p bin
+          cp target/release/telegram_downloader bin/telegram_downloader
