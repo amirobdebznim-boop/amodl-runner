@@ -35,6 +35,10 @@ static VALIR_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?:\\"|")imageUrl(?:\\"|")\s*:\s*(?:\\"|")([^"\\]+(?:\\.[^"\\]*)*)(?:\\"|")"#).unwrap()
 });
 
+static NEXT_SERIES_IMG_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?:/uploads|/images)/series/[^\s"'\\<>]+?\.(?:webp|jpg|jpeg|png|avif)"#).unwrap()
+});
+
 static AJAX_RE_CH: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?i)(?:\\"|")chapter(?:\\"|")\s*:\s*\{[^}]*(?:\\"|")id(?:\\"|")\s*:\s*(?:\\"|")([a-z0-9-]+)(?:\\"|")"#).unwrap()
 });
@@ -827,6 +831,44 @@ fn extract_valir_or_rsc_pages(html_text: &str, base_url: &str) -> Vec<String> {
         }
     }
     let deduped = dedup_strings(pages);
+    if deduped.len() >= 2 {
+        return deduped;
+    }
+
+    // Fallback: Next.js RSC manga series images (e.g. Kayn Scans, ElfToon)
+    let mut series_pages = Vec::new();
+    for cap in NEXT_SERIES_IMG_RE.captures_iter(html_text) {
+        if let Some(m) = cap.get(0) {
+            let path = m.as_str();
+            let lower = path.to_ascii_lowercase();
+            if lower.contains("/cover-")
+                || lower.contains("avatar")
+                || lower.contains("logo")
+                || lower.contains("thumb")
+                || lower.contains("ogimage")
+            {
+                continue;
+            }
+            series_pages.push(path.to_string());
+        }
+    }
+
+    let p_pages: Vec<String> = series_pages
+        .iter()
+        .filter(|s| s.contains("/p-"))
+        .cloned()
+        .collect();
+    let chosen = if p_pages.len() >= 2 {
+        p_pages
+    } else {
+        series_pages
+    };
+
+    let resolved: Vec<String> = chosen
+        .into_iter()
+        .map(|rel| resolve_url(base_url, &rel))
+        .collect();
+    let deduped = dedup_strings(resolved);
     if deduped.len() >= 2 {
         deduped
     } else {
@@ -2470,5 +2512,23 @@ mod tests {
         let fake_url = "https://www.mgeko.cc/manga/yooc-who-let-him-cultivate-immortality/chapter-35";
         let pages = get_chapter_page_urls(&client, fake_url, tmp.path()).await.unwrap();
         assert!(pages.len() >= 20, "Expected at least 20 pages from mgeko chapter 35, got {}", pages.len());
+    }
+
+    #[test]
+    fn test_extract_valir_or_rsc_pages_nextjs() {
+        let sample_html = r#"
+            <script>:HL["/uploads/series/sample/001/cover-thumb.webp","image"]</script>
+            <script>:HL["/uploads/series/sample/001/p-page1.webp","image"]</script>
+            <script>:HL["/uploads/series/sample/001/p-page2.webp","image"]</script>
+            <script>:HL["/uploads/series/sample/001/s-slice1.webp","image"]</script>
+        "#;
+        let pages = extract_valir_or_rsc_pages(sample_html, "https://example.com/chapter/1");
+        assert_eq!(
+            pages,
+            vec![
+                "https://example.com/uploads/series/sample/001/p-page1.webp",
+                "https://example.com/uploads/series/sample/001/p-page2.webp",
+            ]
+        );
     }
 }
