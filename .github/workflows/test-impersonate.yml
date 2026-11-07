@@ -1,0 +1,23 @@
+name: Test TLS Impersonation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-cf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Impersonation Test
+        run: |
+          bash scripts/test_impersonate.sh
+          cat impersonate_results.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: impersonate-results
+          path: impersonate_results.md
