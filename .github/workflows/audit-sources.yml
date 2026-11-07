@@ -31,3 +31,6 @@ jobs:
           path: |
             audit_report.md
             audit_report.json
+            kayn.html
+            elftoon.html
+            flight_*.html
