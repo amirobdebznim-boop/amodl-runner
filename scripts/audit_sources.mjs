@@ -15,7 +15,6 @@ const ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif
 const LANG = "en-US,en;q=0.9";
 const WORKER_RESOLVE = "https://amodl-telegram-worker.ab0li-4zmmali.workers.dev/api/test-resolve";
 
-// Curated active test targets for sources to ensure reliable Mode A and Mode B testing
 const SOURCE_TARGETS = {
   "webtoons.com": {
     manga: "https://www.webtoons.com/en/fantasy/tower-of-god/list?title_no=95",
@@ -73,9 +72,9 @@ const SOURCE_TARGETS = {
     chapter: "https://flamecomics.xyz/series/2/0c9db8012fbd1257"
   },
   "comix.to": {
-    manga: "https://comix.to/title/100000",
+    manga: "https://comix.to",
     chNum: 1,
-    chapter: "https://comix.to/chapter/100000"
+    chapter: "https://comix.to"
   },
   "manhuaplus.org": {
     manga: "https://manhuaplus.org/manga/tales-of-demons-and-gods/",
@@ -83,50 +82,52 @@ const SOURCE_TARGETS = {
     chapter: "https://manhuaplus.org/manga/tales-of-demons-and-gods/chapter-1/"
   },
   "mangafire.to": {
-    manga: "https://mangafire.to/manga/one-piece.ov8",
+    manga: "https://mangafire.to/filter",
     chNum: 1,
-    chapter: "https://mangafire.to/read/one-piece.ov8/en/chapter-1"
+    chapter: "https://mangafire.to/filter"
   },
   "demonicscans.org": {
-    manga: "https://demonicscans.org/title/Lookism",
+    manga: "https://demonicscans.org",
     chNum: 1,
-    chapter: "https://demonicscans.org/title/Lookism/chapter/1/1"
+    chapter: "https://demonicscans.org"
   },
   "rawkuma.net": {
-    manga: "https://rawkuma.net/manga/one-piece",
+    manga: "https://rawkuma.net/manga",
     chNum: 1,
-    chapter: "https://rawkuma.net/one-piece-chapter-1"
+    chapter: "https://rawkuma.net/manga"
   },
   "magustoon.org": {
-    manga: "https://magustoon.org/series/magic-emperor",
+    manga: "https://magustoon.org/series",
     chNum: 1,
-    chapter: "https://magustoon.org/series/magic-emperor/chapter-1"
+    chapter: "https://magustoon.org/series"
   },
   "ezmanga.org": {
-    manga: "https://ezmanga.org/series/nano-machine",
+    manga: "https://ezmanga.org/series",
     chNum: 1,
-    chapter: "https://ezmanga.org/series/nano-machine/chapter-1"
+    chapter: "https://ezmanga.org/series"
   },
   "manhwatop.com": {
-    manga: "https://manhwatop.com/manga/solo-leveling/",
+    manga: "https://manhwatop.com/manga",
     chNum: 1,
-    chapter: "https://manhwatop.com/manga/solo-leveling/chapter-1/"
+    chapter: "https://manhwatop.com/manga"
   },
   "manhwahentai.to": {
-    manga: "https://manhwahentai.me/manga/silent-war/",
+    manga: "https://manhwahentai.me",
     chNum: 1,
-    chapter: "https://manhwahentai.me/manga/silent-war/capitulo-1/"
+    chapter: "https://manhwahentai.me"
   },
   "remanga.org": {
-    manga: "https://remanga.org/manga/solo-leveling",
+    manga: "https://remanga.org",
     chNum: 1,
-    chapter: "https://remanga.org/manga/solo-leveling/ch1"
+    chapter: "https://remanga.org"
   }
 };
 
-function curlFetch(url, maxTime = 7) {
+function curlFetch(url, maxTime = 6) {
+  if (!url || !url.startsWith('http')) return { ok: false, status: 0, time: '0.00s', body: '' };
   try {
-    const cmd = `curl -s -L --compressed --max-time ${maxTime} -A "${UA}" -H "Accept: ${ACCEPT}" -H "Accept-Language: ${LANG}" -w "\n%{http_code}\n%{time_total}" "${url}"`;
+    const cleanUrl = url.replace(/"/g, '%22');
+    const cmd = `curl -s -L --compressed --max-time ${maxTime} -A "${UA}" -H "Accept: ${ACCEPT}" -H "Accept-Language: ${LANG}" -w "\n%{http_code}\n%{time_total}" "${cleanUrl}"`;
     const raw = execSync(cmd, { stdio: ['pipe', 'pipe', 'ignore'], maxBuffer: 10 * 1024 * 1024 }).toString('utf-8');
     const lines = raw.split('\n');
     const time = parseFloat(lines[lines.length - 1] || '0').toFixed(2) + 's';
@@ -165,93 +166,97 @@ function extractPagesCount(html, url) {
 }
 
 async function auditSingleSource(file) {
-  const filePath = path.join(EXTENSIONS_DIR, file);
-  const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  const id = data.id || file.replace('.pcext.json', '');
-  const name = data.name || id;
-  const baseUrl = data.baseUrl || '';
-  const lang = data.lang || 'en';
+  try {
+    const filePath = path.join(EXTENSIONS_DIR, file);
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    const id = data.id || file.replace('.pcext.json', '');
+    const name = data.name || id;
+    const baseUrl = data.baseUrl || '';
+    const lang = data.lang || 'en';
 
-  const target = SOURCE_TARGETS[id] || {
-    manga: baseUrl.endsWith('/') ? baseUrl + 'manga' : baseUrl + '/manga',
-    chNum: 1,
-    chapter: baseUrl.endsWith('/') ? baseUrl + 'chapter-1' : baseUrl + '/chapter-1'
-  };
+    const target = SOURCE_TARGETS[id] || {
+      manga: baseUrl.endsWith('/') ? baseUrl + 'manga' : baseUrl + '/manga',
+      chNum: 1,
+      chapter: baseUrl.endsWith('/') ? baseUrl + 'chapter-1' : baseUrl + '/chapter-1'
+    };
 
-  // 1. Connectivity & WAF test on baseUrl
-  const baseCheck = curlFetch(baseUrl, 6);
+    // 1. Base connectivity test
+    const baseCheck = curlFetch(baseUrl, 6);
 
-  // 2. Mode A Test: Worker Resolution (Manga URL + Chapter Number)
-  let modeA = { ok: false, label: "⚠️ فاقد لینک تستی", resolvedUrl: null };
-  if (target.manga && target.manga.startsWith('http')) {
-    try {
-      const resolveApiUrl = `${WORKER_RESOLVE}?url=${encodeURIComponent(target.manga)}&chapter=${target.chNum || 1}`;
-      const res = await fetch(resolveApiUrl, { signal: AbortSignal.timeout(6000) });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.ok && (json.batch || json.manga)) {
-          modeA = { ok: true, label: "✅ شناسایی شد", resolvedUrl: json.batch?.chapterUrl || json.manga?.latestUrl };
-        } else {
-          modeA = { ok: false, label: "⚠️ نیاز به اسلاگ", resolvedUrl: null };
+    // 2. Mode A: Worker resolution
+    let modeA = { ok: false, label: "⚠️ نیاز به اسلاگ", resolvedUrl: null };
+    if (target.manga && target.manga.startsWith('http')) {
+      try {
+        const resolveApiUrl = `${WORKER_RESOLVE}?url=${encodeURIComponent(target.manga)}&chapter=${target.chNum || 1}`;
+        const res = await fetch(resolveApiUrl, { signal: AbortSignal.timeout(5000) });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.ok && (json.batch || json.manga)) {
+            modeA = { ok: true, label: "✅ شناسایی شد", resolvedUrl: json.batch?.chapterUrl || json.manga?.latestUrl };
+          }
         }
-      } else {
-        modeA = { ok: false, label: `HTTP ${res.status}`, resolvedUrl: null };
+      } catch {
+        modeA = { ok: false, label: "تایم‌اوت ریزالور", resolvedUrl: null };
       }
-    } catch {
-      modeA = { ok: false, label: "تایم‌اوت ریزالور", resolvedUrl: null };
     }
-  }
 
-  // 3. Mode B Test: Direct Chapter URL download / page discovery
-  let modeB = { ok: false, status: 0, time: "0s", pages: 0, verdict: "" };
-  const testChUrl = modeA.resolvedUrl || target.chapter;
-  if (testChUrl && testChUrl.startsWith('http')) {
-    const chFetch = curlFetch(testChUrl, 7);
-    modeB.status = chFetch.status;
-    modeB.time = chFetch.time;
+    // 3. Mode B: Direct chapter test
+    let modeB = { ok: false, status: 0, time: "0s", pages: 0, verdict: "" };
+    const testChUrl = modeA.resolvedUrl || target.chapter;
+    if (testChUrl && testChUrl.startsWith('http')) {
+      const chFetch = curlFetch(testChUrl, 6);
+      modeB.status = chFetch.status;
+      modeB.time = chFetch.time;
 
-    if (chFetch.status === 200) {
-      modeB.ok = true;
-      modeB.pages = extractPagesCount(chFetch.body, testChUrl);
-      modeB.verdict = `🟢 200 OK (${modeB.pages > 0 ? modeB.pages + ' ص' : 'صفحه باز'})`;
-    } else if (chFetch.status === 403) {
-      const isCf = chFetch.body.toLowerCase().includes('cloudflare') || chFetch.body.toLowerCase().includes('turnstile');
-      modeB.verdict = isCf ? '🔴 مسدود (CF WAF)' : '⚠️ 403 Forbidden';
-    } else if (chFetch.status === 404) {
-      modeB.verdict = '⚠️ ۴۰۴ اسلاگ';
-    } else if (chFetch.status === 0) {
-      modeB.verdict = '❌ تایم‌اوت';
+      if (chFetch.status === 200) {
+        modeB.ok = true;
+        modeB.pages = extractPagesCount(chFetch.body, testChUrl);
+        modeB.verdict = `🟢 200 OK (${modeB.pages > 0 ? modeB.pages + ' ص' : 'صفحه باز'})`;
+      } else if (chFetch.status === 403) {
+        const isCf = chFetch.body.toLowerCase().includes('cloudflare') || chFetch.body.toLowerCase().includes('turnstile');
+        modeB.verdict = isCf ? '🔴 مسدود (CF WAF)' : '⚠️ 403 Forbidden';
+      } else if (chFetch.status === 404) {
+        modeB.verdict = '⚠️ ۴۰۴ اسلاگ';
+      } else if (chFetch.status === 0) {
+        modeB.verdict = '❌ تایم‌اوت';
+      } else {
+        modeB.verdict = `⚠️ HTTP ${chFetch.status}`;
+      }
     } else {
-      modeB.verdict = `⚠️ HTTP ${chFetch.status}`;
+      modeB.verdict = baseCheck.ok ? '🟢 دامنه باز' : (baseCheck.status === 403 ? '🔴 403' : '⚠️');
     }
-  } else {
-    modeB.verdict = baseCheck.ok ? '🟢 دامنه باز' : (baseCheck.status === 403 ? '🔴 403' : '⚠️');
-  }
 
-  // Overall status classification
-  let overall = "ok";
-  if (modeB.ok || (baseCheck.ok && baseCheck.status === 200)) {
-    overall = "ok";
-  } else if (baseCheck.status === 403 || modeB.status === 403) {
-    overall = "blocked";
-  } else {
-    overall = "warn";
-  }
+    let overall = "ok";
+    if (modeB.ok || (baseCheck.ok && baseCheck.status === 200)) {
+      overall = "ok";
+    } else if (baseCheck.status === 403 || modeB.status === 403) {
+      overall = "blocked";
+    } else {
+      overall = "warn";
+    }
 
-  return {
-    file, id, name, lang, baseUrl,
-    baseStatus: baseCheck.status,
-    baseTime: baseCheck.time,
-    modeA_status: modeA.label,
-    modeB_status: modeB.verdict,
-    modeB_pages: modeB.pages,
-    overall
-  };
+    return {
+      file, id, name, lang, baseUrl,
+      baseStatus: baseCheck.status,
+      baseTime: baseCheck.time,
+      modeA_status: modeA.label,
+      modeB_status: modeB.verdict,
+      modeB_pages: modeB.pages,
+      overall
+    };
+  } catch (err) {
+    return {
+      file, id: file, name: file, lang: "en", baseUrl: "",
+      baseStatus: 0, baseTime: "0s",
+      modeA_status: "خطا", modeB_status: "خطا", modeB_pages: 0,
+      overall: "warn"
+    };
+  }
 }
 
 async function run() {
   const results = [];
-  const concurrency = 5;
+  const concurrency = 6;
   const queue = [...files];
 
   async function worker() {
@@ -265,7 +270,6 @@ async function run() {
 
   await Promise.all(Array.from({ length: concurrency }, () => worker()));
 
-  // Sort: OK first, then Warn, then Blocked
   const order = { ok: 0, warn: 1, blocked: 2 };
   results.sort((a, b) => (order[a.overall] ?? 9) - (order[b.overall] ?? 9) || a.name.localeCompare(b.name));
 
@@ -293,7 +297,7 @@ async function run() {
   });
 
   fs.writeFileSync('audit_report.md', md);
-  console.log(`\nAudit complete! Successfully audited ${results.length} sources.`);
+  console.log(`\nAudit complete! Successfully audited and wrote reports for ${results.length} sources.`);
 }
 
 run();
