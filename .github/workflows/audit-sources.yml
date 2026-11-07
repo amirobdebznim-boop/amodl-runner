@@ -24,6 +24,11 @@ jobs:
           node scripts/audit_sources.mjs
           cat audit_report.md >> $GITHUB_STEP_SUMMARY
 
+      - name: Detailed CURL Test on 15 Sources
+        run: |
+          bash scripts/test_15_sources_detailed.sh
+          cat test_15_results.md >> $GITHUB_STEP_SUMMARY
+
       - name: Upload Audit Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -31,6 +36,7 @@ jobs:
           path: |
             audit_report.md
             audit_report.json
+            test_15_results.md
             kayn.html
             elftoon.html
             flight_*.html
