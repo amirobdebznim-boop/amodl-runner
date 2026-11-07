@@ -1,0 +1,77 @@
+{
+  "id": "luacomic.org",
+  "name": "Lua Comic",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://luacomic.org",
+  "kind": "html",
+  "nsfw": false,
+  "popular": {
+    "url": "{baseUrl}/",
+    "item_selector": "a[href^='/series/']:has(img)",
+    "title_selector": "h5 || img@alt",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "latest": {
+    "url": "{baseUrl}/",
+    "item_selector": "a[href^='/series/']:has(img)",
+    "title_selector": "h5 || img@alt",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "details": {
+    "url": "{mangaUrl}",
+    "title_selector": "meta[property='og:title']@content || h1",
+    "description_selector": "meta[property='og:description']@content",
+    "thumbnail_selector": "meta[property='og:image']@content",
+    "thumbnail_attr": "content"
+  },
+  "chapters": {
+    "url": "{mangaUrl}",
+    "item_selector": "a[href*='/chapter']",
+    "name_selector": "button || ",
+    "url_attr": "href",
+    "number_selector": "button"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "img[src*='uploads'], img[data-src*='uploads'], img[src*='/upload/'], img[data-src*='/upload/'], img[src*='storage'], img[data-src*='storage']",
+    "image_attr": "src"
+  },
+  "config": {
+    "browseApi": {
+      "url": "https://api.luacomic.org/query?adult=true&query_string=&page={page}&perPage=12",
+      "referer": "{baseUrl}/",
+      "items": "data",
+      "title": "title",
+      "slug": "series_slug",
+      "cover": "thumbnail",
+      "seriesPath": "/series/{slug}",
+      "pageSize": 12
+    },
+    "searchApi": {
+      "url": "https://api.luacomic.org/query?adult=true&query_string={query}&page={page}&perPage=30",
+      "referer": "{baseUrl}/",
+      "items": "data",
+      "title": "title",
+      "slug": "series_slug",
+      "cover": "thumbnail",
+      "seriesPath": "/series/{slug}",
+      "pageSize": 30
+    },
+    "chaptersApi": {
+      "seriesUrl": "https://api.luacomic.org/series/{mangaSlug}",
+      "idField": "id",
+      "url": "https://api.luacomic.org/chapter/query?page=1&perPage=200&order=desc&series_id={seriesId}",
+      "referer": "{baseUrl}/",
+      "items": "data",
+      "name": "chapter_name",
+      "slug": "chapter_slug",
+      "date": "created_at",
+      "chapterPath": "/series/{mangaSlug}/{slug}"
+    }
+  }
+}

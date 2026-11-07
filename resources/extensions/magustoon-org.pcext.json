@@ -1,0 +1,30 @@
+{
+  "id": "magustoon.org",
+  "name": "Magus Manga",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://magustoon.org",
+  "kind": "magus",
+  "nsfw": false,
+  "_note": "Custom Astro-SSR site with a coin system: the newest chapter(s) may be coin-locked (reader renders purchase UI, zero page images). Engine lists the full chapter roster from the series page's embedded JSON and refuses locked chapters at pages() time — never purchased/unlocked. No server-side search; search sweeps the first catalog pages client-side.",
+  "popular": {
+    "url": "{baseUrl}/series?page={page}"
+  },
+  "latest": {
+    "url": "{baseUrl}/series?page={page}"
+  },
+  "search": {
+    "url": "{baseUrl}/series?page={page}"
+  },
+  "details": {
+    "url": "{mangaUrl}"
+  },
+  "chapters": {
+    "url": "{mangaUrl}"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "img[data-reader-page-image]",
+    "image_attr": "src"
+  }
+}

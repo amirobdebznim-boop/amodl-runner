@@ -1,0 +1,59 @@
+{
+  "id": "ezmanga.org",
+  "name": "EZ Manga",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://ezmanga.org",
+  "kind": "html",
+  "nsfw": false,
+  "config": {
+    "note": "HeanCMS \u2014 server-rendered listing"
+  },
+  "popular": {
+    "url": "{baseUrl}/series?page={page}",
+    "item_selector": "a[href^='/series/']:has(img)",
+    "title_selector": "img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "latest": {
+    "url": "{baseUrl}/series?page={page}",
+    "item_selector": "a[href^='/series/']:has(img)",
+    "title_selector": "img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "search": {
+    "url": "{baseUrl}/series?page={page}&query={query}",
+    "item_selector": "a[href^='/series/']:has(img)",
+    "title_selector": "img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "details": {
+    "url": "{mangaUrl}",
+    "title_selector": "meta[property='og:title']@content || h1",
+    "description_selector": "meta[property='og:description']@content",
+    "thumbnail_selector": "meta[property='og:image']@content",
+    "thumbnail_attr": "content"
+  },
+  "chapters": {
+    "url": "{mangaUrl}",
+    "item_selector": "a[href*='/chapter-'], a[href*='/chapter/']",
+    "name_selector": "button || ",
+    "number_selector": "button || ",
+    "url_selector": "",
+    "url_attr": "href"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "img[src*='/upload'], img[src*='/storage'], #readerarea img, .reading-content img",
+    "image_attr": "src"
+  }
+}

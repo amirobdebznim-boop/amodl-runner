@@ -1,0 +1,60 @@
+{
+  "id": "toomics.com",
+  "name": "Toomics 투믹스",
+  "lang": "ko",
+  "version": "1.0.0",
+  "baseUrl": "https://www.toomics.com",
+  "kind": "html",
+  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+  "nsfw": true,
+  "_note": "Korean freemium webtoon platform (기다리면 무료 wait-for-free). Fully static SSR: cards (a.toon, lazy data-original covers), episode rows (li.eps__li), reader (div.viewer__img, direct toon.toomics.com images, no hotlink guard). Paid rows link to javascript:login popups and are skipped by the engine, so chapters list only readable episodes. Chapter rows list oldest-first in the DOM. Bridge URLs (/webtoon/bridge/...) 302 to the reader — the engine fetches them without following redirects and rewrites to the episode list.",
+  "popular": {
+    "url": "{baseUrl}/webtoon/top100/type/famous",
+    "item_selector": "a.toon[href*='/webtoon/bridge/']",
+    "title_selector": "strong.toon__title || img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "latest": {
+    "url": "{baseUrl}/webtoon/weekly",
+    "item_selector": "a.toon[href*='/webtoon/bridge/']",
+    "title_selector": "strong.toon__title || img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "search": {
+    "url": "{baseUrl}/webtoon/search?search_val={query}&from=search",
+    "item_selector": "ul.srchs li.srchs__li a[href*='/webtoon/bridge/']",
+    "title_selector": "strong.srch__title-text || img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "details": {
+    "url": "{baseUrl}/webtoon/episode/toon/{mangaSlug}",
+    "title_selector": "h2.episode__title || meta[property='og:title']@content",
+    "description_selector": "meta[name='description']@content",
+    "author_selector": "meta[property='dable:author']@content",
+    "genre_selector": "a.tag",
+    "thumbnail_selector": "div.episode__cover img, meta[property='og:image']@content",
+    "thumbnail_attr": "src"
+  },
+  "chapters": {
+    "url": "{baseUrl}/webtoon/episode/toon/{mangaSlug}",
+    "item_selector": "li.eps__li a[href*='/webtoon/detail/']",
+    "name_selector": "div.ep__episode",
+    "url_selector": "",
+    "url_attr": "href",
+    "date_selector": "span.ep__date"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "div.viewer__img img",
+    "image_attr": "src"
+  }
+}

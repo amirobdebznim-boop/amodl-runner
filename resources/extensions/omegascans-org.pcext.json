@@ -1,0 +1,85 @@
+{
+  "id": "omegascans.org",
+  "name": "Omega Scans",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://omegascans.org",
+  "kind": "html",
+  "nsfw": true,
+  "_note": "HeanCMS (api.omegascans.org). Browse/search via JSON query API; chapters via series-id → chapter/query; pages via the chapter content API (chapter_data.images, picked up by the regex page fallback). Covers + page images are full media.omegascans.org URLs, fetchable UA-only.",
+  "popular": {
+    "url": "{baseUrl}/",
+    "item_selector": "a[href^='/series/']:has(img)",
+    "title_selector": "img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "latest": {
+    "url": "{baseUrl}/",
+    "item_selector": "a[href^='/series/']:has(img)",
+    "title_selector": "img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "search": {
+    "url": "{baseUrl}/",
+    "item_selector": "a[href^='/series/']:has(img)",
+    "title_selector": "img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "details": {
+    "url": "{mangaUrl}",
+    "title_selector": "meta[property='og:title']@content || h1",
+    "description_selector": "meta[property='og:description']@content",
+    "thumbnail_selector": "meta[property='og:image']@content",
+    "thumbnail_attr": "content"
+  },
+  "chapters": {
+    "url": "{mangaUrl}",
+    "item_selector": "a[href*='/chapter']",
+    "name_selector": "",
+    "number_selector": "",
+    "url_selector": "",
+    "url_attr": "href"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "img[src*='/uploads/series/']",
+    "image_attr": "src"
+  },
+  "config": {
+    "searchApi": {
+      "url": "https://api.omegascans.org/query?adult=true&page={page}&perPage=30&series_type=Comic&query_string={query}",
+      "items": "data",
+      "title": "title",
+      "slug": "series_slug",
+      "cover": "thumbnail",
+      "seriesPath": "/series/{slug}"
+    },
+    "browseApi": {
+      "url": "https://api.omegascans.org/query?adult=true&page={page}&perPage=30&series_type=Comic&query_string={query}",
+      "items": "data",
+      "title": "title",
+      "slug": "series_slug",
+      "cover": "thumbnail",
+      "seriesPath": "/series/{slug}"
+    },
+    "chaptersApi": {
+      "seriesUrl": "https://api.omegascans.org/series/{mangaSlug}",
+      "idField": "id",
+      "referer": "{baseUrl}/",
+      "url": "https://api.omegascans.org/chapter/query?page=1&perPage=9999&series_id={seriesId}",
+      "items": "data",
+      "name": "chapter_name",
+      "slug": "chapter_slug",
+      "date": "created_at"
+    }
+  }
+}

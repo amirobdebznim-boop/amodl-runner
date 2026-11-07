@@ -1,0 +1,18 @@
+{
+  "id": "remanga.org",
+  "name": "ReManga",
+  "lang": "ru",
+  "version": "1.0.0",
+  "baseUrl": "https://remanga.org",
+  "kind": "remanga",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 AmoDL/0.3",
+  "nsfw": false,
+  "config": { "apiUrl": "https://api.remanga.org" },
+
+  "popular": { "url": "{baseUrl}/", "item_selector": "_api" },
+  "latest": { "url": "{baseUrl}/", "item_selector": "_api" },
+  "search": { "url": "{baseUrl}/?q={query}", "item_selector": "_api" },
+  "details": { "url": "{mangaUrl}" },
+  "chapters": { "url": "{mangaUrl}", "item_selector": "_api" },
+  "pages": { "url": "{chapterUrl}", "image_selector": "_api" }
+}

@@ -1,0 +1,55 @@
+{
+  "id": "lolobun.com",
+  "name": "LoLoBun",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://www.lolobun.com",
+  "kind": "html",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 AmoDL/0.3",
+  "nsfw": false,
+  "popular": {
+    "url": "{baseUrl}/",
+    "item_selector": "div.section-item:has(a.name[href*='/c/'])",
+    "title_selector": "a.name",
+    "url_selector": "a.name",
+    "url_attr": "href",
+    "thumbnail_selector": "img.cover",
+    "thumbnail_attr": "src"
+  },
+  "details": {
+    "url": "{mangaUrl}",
+    "title_selector": "div.header-item-info span.name",
+    "description_selector": "#comic-desc",
+    "thumbnail_selector": "img.header-item-cover",
+    "thumbnail_attr": "src"
+  },
+  "chapters": {
+    "url": "{mangaUrl}",
+    "item_selector": "div.catalog-item a",
+    "name_selector": "",
+    "url_selector": "",
+    "url_attr": "href"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "div.content-box > img",
+    "image_attr": "src"
+  },
+  "config": {
+    "pagesApi": {
+      "url": "{baseUrl}/ajax/comic.ashx?op=getChapterPic",
+      "body": { "chapId": "{chapterSlug}" },
+      "items": "data",
+      "image_field": ""
+    },
+    "searchApi": {
+      "url": "{baseUrl}/ajax/Common.ashx?op=getSearchSuggest&q={query}",
+      "items": "data",
+      "title": "Title",
+      "slug": "EntityId",
+      "seriesPath": "/c/{slug}",
+      "filterField": "EntityType",
+      "filterValue": "Comic"
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "id": "mgeko.cc",
+  "name": "MangaGeko",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://www.mgeko.cc",
+  "kind": "html",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 AmoDL/0.3",
+  "nsfw": false,
+
+  "popular": {
+    "url": "{baseUrl}/jumbo/manga/",
+    "item_selector": "li.novel-item",
+    "title_selector": "a@title || h4.novel-title || a",
+    "url_selector": "a[href*='/manga/']",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "data-src"
+  },
+
+  "search": {
+    "url": "{baseUrl}/search/?search={query}",
+    "item_selector": "li.novel-item",
+    "title_selector": "a@title || h4.novel-title || a",
+    "url_selector": "a[href*='/manga/']",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "data-src"
+  },
+
+  "details": {
+    "url": "{mangaUrl}",
+    "title_selector": "h1.novel-title || h1",
+    "description_selector": "div.description || .dsct p || div.summary__content",
+    "author_selector": "div.author span || span[itemprop='author'] || .author a",
+    "genre_selector": "div.categories a, .genres a, a[href*='/genre']",
+    "thumbnail_selector": "figure.cover img, .novel-cover img, div.summary_image img",
+    "thumbnail_attr": "data-src"
+  },
+
+  "chapters": {
+    "url": "{mangaUrl}all-chapters/",
+    "note": "no separator: site manga URLs always end in '/' (/manga/<id>-<slug>/), so verbatim substitution yields .../<slug>/all-chapters/ which matches the site's own Load All Chapters link",
+    "item_selector": "ul.chapter-list li a",
+    "name_selector": "strong.chapter-title || strong",
+    "url_selector": "",
+    "url_attr": "href"
+  },
+
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "#chapter-reader img, div.chapter-images img, img.chapter-img",
+    "image_attr": "src"
+  }
+}

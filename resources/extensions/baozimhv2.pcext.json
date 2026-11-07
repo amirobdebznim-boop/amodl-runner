@@ -1,0 +1,13 @@
+{
+  "id": "baozimh-v2",
+  "name": "包子漫画 BaoziMH V2",
+  "lang": "zh",
+  "version": "1.0.0",
+  "baseUrl": "https://www.twmanga.com",
+  "kind": "baoziv2",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+  "nsfw": false,
+  "config": {
+    "note": "Nuxt/AMP frontend of 包子漫畫. Carries newer Tencent-exclusive titles (e.g. ac.qq.com id 657666 極品天驕) that baozimh.org dropped. Reader pages come from the sibling static host twmanga.com; newest chapter may be an app-gate promo image, mirroring Tencent's own free tier."
+  }
+}

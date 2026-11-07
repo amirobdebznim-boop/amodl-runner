@@ -1,0 +1,58 @@
+{
+  "id": "violetscans.com",
+  "name": "Violet Scans",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://violetmanga.com",
+  "kind": "html",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 AmoDL/0.3",
+  "nsfw": false,
+  "popular": {
+    "url": "{baseUrl}/comics?order=popular&page={page}",
+    "item_selector": "a[href*='/comics/']:has(img)",
+    "title_selector": "@title || div.tt || img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "latest": {
+    "url": "{baseUrl}/comics?order=update&page={page}",
+    "item_selector": "a[href*='/comics/']:has(img)",
+    "title_selector": "@title || div.tt || img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "search": {
+    "url": "{baseUrl}/{pagePath}?s={query}",
+    "item_selector": "a[href*='/comics/']:has(img)",
+    "title_selector": "@title || div.tt || img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "details": {
+    "url": "{mangaUrl}",
+    "title_selector": "h1.text-2xl || h1.text-xl || h1",
+    "description_selector": "span.font-medium || p.text-sm",
+    "genre_selector": "button.bg-themecolor, a[href*='genre']",
+    "thumbnail_selector": "img.wp-post-image || div.thumb img || img.rounded",
+    "thumbnail_attr": "src"
+  },
+  "chapters": {
+    "url": "{mangaUrl}",
+    "item_selector": "a[href*='-chapter-'], div.divide-y a[href*='/chapter/'], a[href*='/chapter/']",
+    "name_selector": "h3 || ",
+    "url_selector": "",
+    "url_attr": "href",
+    "date_selector": "h3.text-xs"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "div#readerarea img, img[src*='/chapters/'], img[src*='/uploads/manga/'], img[src*='/storage/']",
+    "image_attr": "src"
+  }
+}

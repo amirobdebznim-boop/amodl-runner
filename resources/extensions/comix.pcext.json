@@ -1,0 +1,41 @@
+{
+  "id": "comix.to",
+  "name": "Comix",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://comix.to",
+  "kind": "comix",
+  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36",
+  "nsfw": false,
+  "popular": {
+    "url": "{baseUrl}/",
+    "item_selector": "",
+    "title_selector": "",
+    "url_selector": ""
+  },
+  "latest": {
+    "url": "{baseUrl}/",
+    "item_selector": "",
+    "title_selector": "",
+    "url_selector": ""
+  },
+  "search": {
+    "url": "{baseUrl}/search?q={query}",
+    "item_selector": "",
+    "title_selector": "",
+    "url_selector": ""
+  },
+  "details": {
+    "url": "{baseUrl}/title/{mangaUrl}",
+    "title_selector": ""
+  },
+  "chapters": {
+    "url": "{baseUrl}/title/{mangaUrl}",
+    "item_selector": ""
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "#reader img",
+    "image_attr": "src"
+  }
+}

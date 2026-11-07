@@ -1,0 +1,14 @@
+{
+  "id": "divascans.org",
+  "name": "Diva Scans",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://divascans.org",
+  "kind": "valirscans",
+  "nsfw": true,
+  "popular":  {"url": "{baseUrl}/api/series"},
+  "search":   {"url": "{baseUrl}/api/series"},
+  "details":  {"url": "{baseUrl}/series/comic/{mangaUrl}"},
+  "chapters": {"url": "{baseUrl}/series/comic/{mangaUrl}"},
+  "pages":    {"url": "{baseUrl}/series/comic/{mangaUrl}/chapter/{chapterUrl}", "image_selector": ""}
+}

@@ -1,0 +1,15 @@
+{
+  "id": "aquareader.org",
+  "name": "Aqua Reader",
+  "lang": "en",
+  "version": "1.1.1",
+  "baseUrl": "https://aquareader.org",
+  "kind": "wordpress",
+  "nsfw": false,
+  "config": {
+    "wp": {
+      "item": "article.aqua-archive-card",
+      "title": "h3.aqua-archive-card__title a"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "id": "kingofshojo.com",
+  "name": "King of Shojo",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://kingofshojo.com",
+  "kind": "wordpress",
+  "nsfw": false
+}

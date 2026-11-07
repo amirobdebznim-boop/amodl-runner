@@ -1,0 +1,13 @@
+{
+  "id": "kuaikanmanhua.com",
+  "name": "快看漫画 Kuaikan",
+  "lang": "zh",
+  "version": "1.0.0",
+  "baseUrl": "https://www.kuaikanmanhua.com",
+  "kind": "kuaikan",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+  "nsfw": false,
+  "config": {
+    "note": "Official 快看漫画 (Kuaikan) — free chapters mirror the app's weekly free tier; pweb/topic + comic/inner JSON APIs."
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "id": "nyxscans.com",
+  "name": "Nyx Scans",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://nyxscans.com",
+  "kind": "html",
+  "nsfw": false,
+  "popular": {
+    "url": "{baseUrl}/",
+    "item_selector": "a[href^='/series/']:has(img)",
+    "title_selector": "img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "latest": {
+    "url": "{baseUrl}/",
+    "item_selector": "a[href^='/series/']:has(img)",
+    "title_selector": "img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "search": {
+    "url": "{baseUrl}/",
+    "item_selector": "a[href^='/series/']:has(img)",
+    "title_selector": "img@alt",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "details": {
+    "url": "{mangaUrl}",
+    "title_selector": "meta[property='og:title']@content || h1",
+    "description_selector": "meta[property='og:description']@content",
+    "thumbnail_selector": "meta[property='og:image']@content",
+    "thumbnail_attr": "content"
+  },
+  "chapters": {
+    "url": "{mangaUrl}",
+    "item_selector": "a[href*='/chapter']",
+    "name_selector": "button || ",
+    "number_selector": "button || ",
+    "url_selector": "",
+    "url_attr": "href"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "img[src*='storage'], img[src*='/uploads/'], #readerarea img, .reading-content img",
+    "image_attr": "src"
+  },
+  "config": {
+    "browseApi": {
+      "url": "https://api.nyxscans.com/api/query?page={page}&perPage=30&searchTerm=",
+      "items": "posts",
+      "title": "postTitle",
+      "slug": "slug",
+      "cover": "featuredImage",
+      "seriesPath": "/series/{slug}",
+      "pageSize": 30
+    },
+    "searchApi": {
+      "url": "https://api.nyxscans.com/api/query?page={page}&perPage=30&searchTerm={query}",
+      "items": "posts",
+      "title": "postTitle",
+      "slug": "slug",
+      "cover": "featuredImage",
+      "seriesPath": "/series/{slug}",
+      "pageSize": 30
+    }
+  }
+}

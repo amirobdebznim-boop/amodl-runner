@@ -1,0 +1,12 @@
+{
+  "id": "senkuro.com",
+  "name": "Senkuro",
+  "lang": "ru",
+  "version": "1.0.0",
+  "baseUrl": "https://senkuro.com",
+  "kind": "senkuro",
+  "nsfw": false,
+  "config": {
+    "apiUrl": "https://api.senkuro.com/graphql"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "id": "rawuwu.net",
+  "name": "RawUwU (Raw 日本語)",
+  "lang": "ja",
+  "version": "1.0.0",
+  "baseUrl": "https://rawuwu.net",
+  "kind": "html",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 AmoDL/0.3",
+  "nsfw": false,
+  "popular": {
+    "url": "{baseUrl}/spa/home",
+    "item_selector": "_jsonapi"
+  },
+  "latest": {
+    "url": "{baseUrl}/spa/latest-manga",
+    "item_selector": "_jsonapi"
+  },
+  "search": {
+    "url": "{baseUrl}/ajax/search-manga?query={query}",
+    "item_selector": "_jsonapi"
+  },
+  "details": {
+    "url": "{baseUrl}/raw/{mangaSlug}",
+    "title_selector": "h1.manga-title",
+    "description_selector": ".manga-description .inner",
+    "author_selector": "li:-soup-contains(Author) .md-content",
+    "genre_selector": "li:-soup-contains(Genre) .md-content a",
+    "status_selector": "li:-soup-contains(Status) .md-content",
+    "thumbnail_selector": ".manga-img img",
+    "thumbnail_attr": "src",
+    "_note": "details fetches the HTML series page (/raw/{slug}); the SPA JSON endpoint (/spa/manga/...) cannot be scraped with CSS selectors. chapters/pages go through config.*Api + reader HTML."
+  },
+  "chapters": {
+    "url": "{baseUrl}/spa/manga/{mangaSlug}",
+    "item_selector": "chapters[]",
+    "name_selector": "chapter_number",
+    "url_selector": "chapter_id",
+    "number_selector": "chapter_number",
+    "date_selector": "chapter_date_published"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "div.chapter-imgs img[data-src]",
+    "image_attr": "data-src"
+  },
+  "config": {
+    "cookies": "read=1",
+    "browseApi": {
+      "url": "{baseUrl}/spa/home",
+      "items": "manga_list",
+      "title": "manga_name",
+      "slug": "manga_id",
+      "cover": "manga_cover_img",
+      "seriesPath": "/raw/{slug}"
+    },
+    "searchApi": {
+      "url": "{baseUrl}/ajax/search-manga?query={query}",
+      "items": "",
+      "title": "manga_name",
+      "slug": "manga_id",
+      "cover": "manga_cover_img",
+      "seriesPath": "/raw/{slug}"
+    },
+    "chaptersApi": {
+      "url": "{baseUrl}/spa/manga/{mangaSlug}",
+      "items": "chapters",
+      "name": "chapter_number",
+      "slug": "chapter_number",
+      "date": "chapter_date_published",
+      "chapterPath": "/read/{mangaSlug}/chapter-{slug}"
+    },
+    "pagesImageBase": "https://s1.rawuwu.net",
+    "note": "browse/search/chapters via the site's JSON SPA endpoints (config.*); pages via reader HTML with cookie read=1 (unhides data-src list) and pagesImageBase rewrite to s1.rawuwu.net."
+  }
+}

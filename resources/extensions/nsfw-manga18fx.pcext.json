@@ -1,0 +1,63 @@
+{
+  "baseUrl": "https://manga18fx.com",
+  "chapters": {
+    "item_selector": "ul.row-content-chapter li a.chapter-name, ul.row-content-chapter li a",
+    "name_selector": "",
+    "url": "{mangaUrl}",
+    "url_attr": "href",
+    "url_selector": ""
+  },
+  "config": {
+    "keiyoushi_id": "3157287889751723714",
+    "note": "Cloudflare-gated — cleared automatically by FlareSolverr on passive reads (auto-safe path). render:false so the auto solver runs instead of the CDP browser. Selectors are standard bsx-item.",
+    "render": false
+  },
+  "details": {
+    "author_selector": "div.author-content a",
+    "description_selector": "div.summary__content, div.description-summary",
+    "genre_selector": "div.genres-content a",
+    "thumbnail_attr": "data-src",
+    "thumbnail_selector": "div.summary_image img",
+    "title_selector": "div.post-title h1 || h1",
+    "url": "{mangaUrl}"
+  },
+  "id": "manga18fx.com",
+  "kind": "html",
+  "lang": "en",
+  "latest": {
+    "item_selector": "div.bsx-item",
+    "thumbnail_attr": "data-src",
+    "thumbnail_selector": "img",
+    "title_selector": "a@title || .tt",
+    "url": "{baseUrl}/page/{page}",
+    "url_attr": "href",
+    "url_selector": "div.thumb-manga a || a"
+  },
+  "name": "Manga18fx",
+  "nsfw": true,
+  "pages": {
+    "image_attr": "data-src",
+    "image_selector": "div.reading-content img, div.page-break img, img.wp-manga-chapter-img",
+    "url": "{chapterUrl}"
+  },
+  "popular": {
+    "item_selector": "div.bsx-item",
+    "thumbnail_attr": "data-src",
+    "thumbnail_selector": "img",
+    "title_selector": "a@title || .tt",
+    "url": "{baseUrl}/page/{page}",
+    "url_attr": "href",
+    "url_selector": "div.thumb-manga a || a"
+  },
+  "search": {
+    "item_selector": "div.bsx-item",
+    "thumbnail_attr": "data-src",
+    "thumbnail_selector": "img",
+    "title_selector": "a@title || .tt",
+    "url": "{baseUrl}/search?q={query}",
+    "url_attr": "href",
+    "url_selector": "div.thumb-manga a || a"
+  },
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 AmoDL/0.3",
+  "version": "1.0.0"
+}

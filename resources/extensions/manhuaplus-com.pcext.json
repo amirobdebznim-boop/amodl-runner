@@ -1,0 +1,9 @@
+{
+  "id": "manhuaplus.com",
+  "name": "ManhuaPlus",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://manhuaplus.com",
+  "kind": "wordpress",
+  "nsfw": false
+}

@@ -1,0 +1,63 @@
+{
+  "id": "flamecomics.xyz",
+  "name": "Flame Comics",
+  "lang": "en",
+  "version": "1.2.0",
+  "baseUrl": "https://flamecomics.xyz",
+  "kind": "html",
+  "user_agent": "AmoDL/0.1",
+  "nsfw": false,
+  "popular": {
+    "url": "{baseUrl}/browse?page={page}",
+    "next_page": {
+      "selector": "button:-soup-contains(Next)",
+      "mode": "selector"
+    },
+    "item_selector": "div[class*='DescSeriesCard'][class*='cardContainer']",
+    "title_selector": "a[class*='DescSeriesCard'][class*='title'] || img@alt",
+    "url_selector": "a[href*='/series/']",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "latest": {
+    "url": "{baseUrl}/browse?sort=latest&page={page}",
+    "item_selector": "div[class*='DescSeriesCard'][class*='cardContainer']",
+    "title_selector": "a[class*='DescSeriesCard'][class*='title'] || img@alt",
+    "url_selector": "a[href*='/series/']",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "search": {
+    "url": "{baseUrl}/browse?search={query}&page={page}",
+    "item_selector": "div[class*='DescSeriesCard'][class*='cardContainer']",
+    "title_selector": "a[class*='DescSeriesCard'][class*='title'] || img@alt",
+    "url_selector": "a[href*='/series/']",
+    "url_attr": "href",
+    "thumbnail_selector": "img",
+    "thumbnail_attr": "src"
+  },
+  "details": {
+    "url": "{mangaUrl}",
+    "title_selector": "h1",
+    "description_selector": "div.description",
+    "genre_selector": "div.genres a",
+    "status_selector": "span:-soup-contains(Status) + span",
+    "thumbnail_selector": "img.cover",
+    "thumbnail_attr": "src"
+  },
+  "chapters": {
+    "url": "{mangaUrl}",
+    "item_selector": "a[class*='ChapterCard'][class*='chapterWrapper']",
+    "name_selector": "p[data-size='md']",
+    "url_selector": "",
+    "url_attr": "href",
+    "date_selector": "p[data-size='xs']"
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "img[src*='/uploads/images/series/']",
+    "image_attr": "src"
+  }
+}

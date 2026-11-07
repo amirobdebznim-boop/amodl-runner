@@ -1,0 +1,82 @@
+{
+  "id": "hipmh.com",
+  "name": "嬉皮漫畫 HipMH",
+  "lang": "zh",
+  "version": "1.0.0",
+  "baseUrl": "https://m.hipmh.com",
+  "kind": "html",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0 AmoDL/0.3",
+  "nsfw": false,
+
+  "popular": {
+    "url": "{baseUrl}/popularity?page={page}",
+    "item_selector": "a.manga-card-link",
+    "title_selector": "h3.manga-card-title || @aria-label",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img.manga-card-image",
+    "thumbnail_attr": "src"
+  },
+  "latest": {
+    "url": "{baseUrl}/new-releases?page={page}",
+    "item_selector": "a.manga-card-link",
+    "title_selector": "h3.manga-card-title || @aria-label",
+    "url_selector": "",
+    "url_attr": "href",
+    "thumbnail_selector": "img.manga-card-image",
+    "thumbnail_attr": "src"
+  },
+  "details": {
+    "url": "{mangaUrl}",
+    "title_selector": "h1",
+    "description_selector": "meta[property='og:description']@content",
+    "thumbnail_selector": "[data-cover-url]",
+    "thumbnail_attr": "data-cover-url"
+  },
+  "chapters": {
+    "url": "{mangaUrl}",
+    "item_selector": ""
+  },
+  "pages": {
+    "url": "{chapterUrl}",
+    "image_selector": "img.chapter-image",
+    "image_attr": "src"
+  },
+
+  "config": {
+    "searchApi": {
+      "url": "https://hipapi1.s3file.top/v1/search?q={query}&page={page}&page_size=24",
+      "items": "data.data",
+      "title": "title",
+      "slug": "id",
+      "cover": "vertical_image_url",
+      "coverBase": "https://cover.s3imgs.top",
+      "seriesPath": "/works/{slug}"
+    },
+    "chaptersApi": {
+      "seriesUrl": "{baseUrl}/works/{mangaSlug}",
+      "idRegex": "data-source-key=\"(\\d+)\"",
+      "url": "https://hipapi1.s3file.top/v1/manga/chapters?mid={seriesId}&page={page}&per_page=50&order=desc",
+      "items": "data.items",
+      "name": "title",
+      "slug": "hid",
+      "number": "chapter_number",
+      "date": "created_at",
+      "chapterPath": "https://reader.hipmh.top/chapter/{slug}"
+    },
+    "pagesApi": {
+      "url": "https://hipapi1.s3file.top/v2/chapter?hid={apiHid}",
+      "imageField": "data.images",
+      "imageBase": "https://hip-tx-1.s3imgs.top",
+      "jsDecoder": {
+        "scriptUrl": "https://reader.hipmh.top/assets/runtime/chapter-decoder.js",
+        "callExpr": "window.__cimg.r",
+        "hidRebuild": {
+          "pattern": "^m:\\d+-c:(\\d+)$",
+          "idGroup": 1,
+          "prefix": "c:"
+        }
+      }
+    }
+  }
+}

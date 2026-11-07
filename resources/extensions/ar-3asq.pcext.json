@@ -1,0 +1,9 @@
+{
+  "id": "3asq.org",
+  "name": "3asq",
+  "lang": "ar",
+  "version": "1.0.0",
+  "baseUrl": "https://3asq.org",
+  "kind": "wordpress",
+  "nsfw": false
+}
