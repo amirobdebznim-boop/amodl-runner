@@ -57,25 +57,25 @@ const SOURCES = [
     name: "Vortex Scans",
     domain: "vortexscans.org",
     type: "Next.js Data Scraper",
-    mangaUrl: "https://vortexscans.org/series/overpowered-sword",
+    mangaUrl: "https://vortexscans.org/series/contract-killer-enrollment",
     chapterNum: 1,
-    directUrl: "https://vortexscans.org/series/overpowered-sword/chapter-1"
+    directUrl: "https://vortexscans.org/series/contract-killer-enrollment/chapter-1"
   },
   {
     name: "Baozimh",
     domain: "baozimh.org",
     type: "Universal / Chinese HTML",
-    mangaUrl: "https://baozimh.org/manga/jujutsu-kaisen-gegeakutami",
+    mangaUrl: "https://baozimh.org/manga/wuliandianfeng-pikapi",
     chapterNum: 1,
-    directUrl: "https://baozimh.org/manga/jujutsu-kaisen-gegeakutami/chapter-1"
+    directUrl: "https://baozimh.org/manga/wuliandianfeng-pikapi/0_0"
   },
   {
     name: "Flame Comics",
-    domain: "flamecomics.me",
-    type: "Themesia / WordPress",
-    mangaUrl: "https://flamecomics.me/series/the-indomitable-martial-king/",
+    domain: "flamecomics.xyz",
+    type: "Next.js / Themesia",
+    mangaUrl: "https://flamecomics.xyz/series/2",
     chapterNum: 1,
-    directUrl: "https://flamecomics.me/series/the-indomitable-martial-king/chapter-1/"
+    directUrl: "https://flamecomics.xyz/series/2/0c9db8012fbd1257"
   },
   {
     name: "ManhwaClan",
@@ -217,6 +217,14 @@ async function testDirectChapter(directUrl) {
     const imgMatches = text.match(/<img[^>]+(?:src|data-src|data-lazy-src)=["']([^"']+)["']/gi) || [];
     const comicImgs = imgMatches.filter(m => !m.includes('logo') && !m.includes('avatar') && !m.includes('icon'));
     pageCount = comicImgs.length;
+
+    if (pageCount < 2) {
+      const seriesMatches = text.match(/(?:\/uploads|\/images)\/series\/[^\s"'\\<>]+?\.(?:webp|jpg|jpeg|png|avif)/gi) || [];
+      const cleanSeries = seriesMatches.filter(m => !m.includes('/cover-') && !m.includes('avatar') && !m.includes('logo') && !m.includes('thumb'));
+      const pPages = cleanSeries.filter(m => m.includes('/p-'));
+      const chosen = pPages.length >= 2 ? pPages : cleanSeries;
+      pageCount = new Set(chosen).size;
+    }
 
     if (directUrl.includes('mangadex.org')) {
       const cid = directUrl.match(/chapter\/([0-9a-f-]{36})/i)?.[1];
