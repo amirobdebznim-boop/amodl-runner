@@ -1,4 +1,6 @@
-async function inspect(url) {
+import fs from 'fs';
+
+async function inspect(url, filename) {
   console.log(`\n=== Inspecting: ${url} ===`);
   const res = await fetch(url, {
     headers: {
@@ -9,26 +11,20 @@ async function inspect(url) {
   console.log("Status:", res.status);
   const text = await res.text();
   console.log("Length:", text.length);
-  
-  // Find all matches for uploads/ or images
-  const allImgs = [...text.matchAll(/https?:\/\/[^"'\s\\]+\.(?:jpg|jpeg|png|webp|avif)[^"'\s\\]*/gi)].map(m => m[0]);
-  console.log("All image links:", allImgs);
+  fs.writeFileSync(filename, text);
 
-  // Look for Next.js data or props
-  const nextData = text.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
-  if (nextData) {
-    console.log("__NEXT_DATA__ found! Length:", nextData[1].length);
-  }
-
-  // Look for self.__next_f
-  const nextF = [...text.matchAll(/self\.__next_f\.push\(\[1,"([\s\S]*?)"\]\)/g)];
-  console.log("self.__next_f pushes count:", nextF.length);
-  for (const nf of nextF) {
-    if (nf[1].includes('chapter') || nf[1].includes('.webp') || nf[1].includes('.jpg')) {
-      console.log("Found chunk with image/chapter:", nf[1].slice(0, 300));
+  // Flight test
+  const flightRes = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+      "RSC": "1"
     }
-  }
+  });
+  console.log("Flight status:", flightRes.status);
+  const flightText = await flightRes.text();
+  console.log("Flight length:", flightText.length);
+  fs.writeFileSync("flight_" + filename, flightText);
 }
 
-await inspect("https://kaynscans.com/series/comic/the-chaebol-familys-genius-monster/chapter/30");
-await inspect("https://elftoon.net/series/comic/who-let-him-cultivate-immortality/chapter/31");
+await inspect("https://kaynscans.com/series/comic/the-chaebol-familys-genius-monster/chapter/30", "kayn.html");
+await inspect("https://elftoon.net/series/comic/who-let-him-cultivate-immortality/chapter/31", "elftoon.html");
