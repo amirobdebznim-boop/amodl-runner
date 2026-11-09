@@ -68,11 +68,16 @@ static SANITIZE_RE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 static DUP_CH_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)/chapter[-_]?(\d+(?:\.\d+)?)/chapter[-_]?\1/?$").unwrap()
+    Regex::new(r"(?i)/chapter[-_]?(\d+(?:\.\d+)?)/chapter[-_]?(\d+(?:\.\d+)?)/?$").unwrap()
 });
 
 fn normalize_chapter_url(url: &str) -> String {
-    DUP_CH_RE.replace(url, "/chapter-$1").to_string()
+    if let Some(caps) = DUP_CH_RE.captures(url) {
+        if caps.get(1).map(|m| m.as_str()) == caps.get(2).map(|m| m.as_str()) {
+            return DUP_CH_RE.replace(url, "/chapter-$1").to_string();
+        }
+    }
+    url.to_string()
 }
 
 
@@ -2663,5 +2668,17 @@ mod tests {
         let naver_url = "https://comic.naver.com/webtoon/detail?titleId=758037&no=1";
         let pages = get_chapter_page_urls(&client, naver_url, tmp.path()).await.unwrap();
         assert!(pages.len() >= 20, "Expected at least 20 pages from Naver chapter 1, got {}", pages.len());
+    }
+
+    #[test]
+    fn test_normalize_chapter_url() {
+        assert_eq!(
+            normalize_chapter_url("https://example.com/manga/chapter-1/chapter-1"),
+            "https://example.com/manga/chapter-1"
+        );
+        assert_eq!(
+            normalize_chapter_url("https://example.com/manga/chapter-1"),
+            "https://example.com/manga/chapter-1"
+        );
     }
 }
