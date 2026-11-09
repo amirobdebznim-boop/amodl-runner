@@ -1266,6 +1266,10 @@ async fn extract_html_pages(
 
     let candidates: &[(&str, &[&str])] = &[
         (
+            ".comic-contain img, .comic-contain amp-img, amp-img.comic-contain__item",
+            &["data-src", "src"],
+        ),
+        (
             "#readerarea img, .readerarea img, div#readerarea img",
             &["data-src", "data-lazy-src", "src", "data-original"],
         ),
@@ -1867,6 +1871,8 @@ async fn fetch_image_bytes(client: &Client, url: &str, referer: &str) -> Option<
     let mut current_url = url.to_string();
     let effective_referer = if url.contains("image-comic.pstatic.net") {
         "https://comic.naver.com"
+    } else if url.contains("bzcdn.net") {
+        "https://www.twbzmg.com/"
     } else {
         referer
     };
@@ -2685,6 +2691,15 @@ mod tests {
         let list_url = "https://comic.naver.com/webtoon/list?titleId=758037";
         let pages_list = get_chapter_page_urls(&client, list_url, tmp.path()).await.unwrap();
         assert!(pages_list.len() >= 10, "Expected pages from latest episode via list URL fallback");
+    }
+
+    #[tokio::test]
+    async fn test_extract_baoziv2_pages_live() {
+        let client = Client::new();
+        let tmp = tempfile::tempdir().unwrap();
+        let baozi_url = "https://www.twbzmg.com/comic/chapter/dingjiqiyunqiaoqiaoxiulianqiannian-yuewenmanhua/0_271.html";
+        let pages = get_chapter_page_urls(&client, baozi_url, tmp.path()).await.unwrap();
+        assert!(pages.len() >= 10, "Expected at least 10 pages from Baozi/TwManga chapter, got {}", pages.len());
     }
 
     #[test]
