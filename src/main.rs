@@ -473,7 +473,7 @@ async fn extract_naver_pages(client: &Client, chapter_url: &str) -> Result<Vec<P
                 .find(|(k, _)| k == "titleId")
                 .map(|(_, v)| v.to_string());
             if let Some(tid) = title_id {
-                let api_url = format!("https://comic.naver.com/api/article/list?titleId={tid}&page=1");
+                let api_url = format!("https://comic.naver.com/api/article/list?titleId={tid}&page=1&sort=DESC");
                 if let Ok(res) = client
                     .get(&api_url)
                     .header("User-Agent", USER_AGENT)
@@ -482,8 +482,17 @@ async fn extract_naver_pages(client: &Client, chapter_url: &str) -> Result<Vec<P
                     .await
                 {
                     if let Ok(data) = res.json::<serde_json::Value>().await {
-                        if let Some(first) = data.pointer("/articleList/0/no").and_then(|v| v.as_i64()) {
-                            target_url = format!("https://comic.naver.com/webtoon/detail?titleId={tid}&no={first}");
+                        if let Some(articles) = data.pointer("/articleList").and_then(|v| v.as_array()) {
+                            let target = articles.iter().find(|a| {
+                                let charge = a.get("charge").and_then(|v| v.as_bool()).unwrap_or(false);
+                                let lock = a.get("thumbnailLock").and_then(|v| v.as_bool()).unwrap_or(false);
+                                !charge && !lock
+                            }).or_else(|| articles.first());
+                            if let Some(art) = target {
+                                if let Some(no) = art.get("no").and_then(|v| v.as_i64()) {
+                                    target_url = format!("https://comic.naver.com/webtoon/detail?titleId={tid}&no={no}");
+                                }
+                            }
                         }
                     }
                 }
@@ -504,6 +513,14 @@ async fn extract_naver_pages(client: &Client, chapter_url: &str) -> Result<Vec<P
 
     if !res.status().is_success() {
         return Ok(vec![]);
+    }
+
+    // If detail URL was redirected back to /list, it means the chapter is locked/preview
+    if target_url.contains("/detail") && res.url().path().contains("/list") {
+        return Err(AppError::ChapterLocked(
+            "این چپتر در ناور قفل است (نیاز به خرید با کوکی دارد یا جزو پیش‌نمایش‌های پولی است)."
+                .to_string(),
+        ));
     }
 
     let Ok(text) = res.text().await else {
@@ -2691,6 +2708,14 @@ mod tests {
         let list_url = "https://comic.naver.com/webtoon/list?titleId=758037";
         let pages_list = get_chapter_page_urls(&client, list_url, tmp.path()).await.unwrap();
         assert!(pages_list.len() >= 10, "Expected pages from latest episode via list URL fallback");
+
+        // 5. Locked preview episode -> returns AppError::ChapterLocked
+        let preview_url = "https://comic.naver.com/webtoon/detail?titleId=758037&no=270";
+        let res_locked = get_chapter_page_urls(&client, preview_url, tmp.path()).await;
+        match res_locked {
+            Err(AppError::ChapterLocked(msg)) => assert!(msg.contains("قفل")),
+            other => panic!("Expected AppError::ChapterLocked, got {:?}", other),
+        }
     }
 
     #[tokio::test]
