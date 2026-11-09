@@ -67,6 +67,14 @@ static SANITIZE_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"[\\/*?:"<>|\r\n\t]+"#).unwrap()
 });
 
+static DUP_CH_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)/chapter[-_]?(\d+(?:\.\d+)?)/chapter[-_]?\1/?$").unwrap()
+});
+
+fn normalize_chapter_url(url: &str) -> String {
+    DUP_CH_RE.replace(url, "/chapter-$1").to_string()
+}
+
 
 #[derive(Parser, Debug, Clone)]
 #[command(about = "AmoDL Telegram Downloader")]
@@ -444,6 +452,98 @@ async fn extract_webtoons_pages(client: &Client, chapter_url: &str) -> Vec<PageI
         }
     }
     urls
+}
+
+async fn extract_naver_pages(client: &Client, chapter_url: &str) -> Result<Vec<PageItem>, AppError> {
+    let mut target_url = chapter_url.to_string();
+    if target_url.contains("m.comic.naver.com") {
+        target_url = target_url.replace("m.comic.naver.com", "comic.naver.com");
+    }
+
+    // If it's a series list URL without &no=, fetch latest chapter via API
+    if !target_url.contains("no=") {
+        if let Ok(parsed) = Url::parse(&target_url) {
+            let title_id = parsed
+                .query_pairs()
+                .find(|(k, _)| k == "titleId")
+                .map(|(_, v)| v.to_string());
+            if let Some(tid) = title_id {
+                let api_url = format!("https://comic.naver.com/api/article/list?titleId={tid}&page=1");
+                if let Ok(res) = client
+                    .get(&api_url)
+                    .header("User-Agent", USER_AGENT)
+                    .header("Referer", "https://comic.naver.com")
+                    .send()
+                    .await
+                {
+                    if let Ok(data) = res.json::<serde_json::Value>().await {
+                        if let Some(first) = data.pointer("/articleList/0/no").and_then(|v| v.as_i64()) {
+                            target_url = format!("https://comic.naver.com/webtoon/detail?titleId={tid}&no={first}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let Ok(res) = client
+        .get(&target_url)
+        .header("User-Agent", USER_AGENT)
+        .header("Referer", "https://comic.naver.com")
+        .timeout(Duration::from_secs(20))
+        .send()
+        .await
+    else {
+        return Ok(vec![]);
+    };
+
+    if !res.status().is_success() {
+        return Ok(vec![]);
+    }
+
+    let Ok(text) = res.text().await else {
+        return Ok(vec![]);
+    };
+
+    if (text.contains("유료회차") || text.contains("쿠키")) && !text.contains("wt_viewer") {
+        return Err(AppError::ChapterLocked("این چپتر در ناور قفل (پولی / نیاز به کوکی) است.".to_string()));
+    }
+
+    let doc = Html::parse_document(&text);
+    let mut urls = Vec::new();
+    let mut seen = HashSet::new();
+
+    if let Ok(sel) = Selector::parse(".wt_viewer img, #comic_view_area img") {
+        for el in doc.select(&sel) {
+            let v = el.value();
+            let u = v.attr("src").or_else(|| v.attr("data-src"));
+            if let Some(u) = u {
+                if u.starts_with("http")
+                    && u.contains("image-comic.pstatic.net")
+                    && !u.contains("thumbnail")
+                    && !u.contains("banner")
+                    && !u.contains("/static/")
+                    && seen.insert(u.to_string())
+                {
+                    urls.push(PageItem::Single(u.trim().to_string()));
+                }
+            }
+        }
+    }
+
+    if urls.is_empty() {
+        static NAVER_FALLBACK_RE: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r#"(?i)https?://image-comic\.pstatic\.net/webtoon/[^"'\s<>]+\.(?:jpg|jpeg|png|webp)"#).unwrap()
+        });
+        for m in NAVER_FALLBACK_RE.find_iter(&text) {
+            let u = m.as_str();
+            if !u.contains("thumbnail") && !u.contains("banner") && !u.contains("/static/") && seen.insert(u.to_string()) {
+                urls.push(PageItem::Single(u.to_string()));
+            }
+        }
+    }
+
+    Ok(urls)
 }
 
 async fn extract_hipmh_pages(chapter_url: &str, scripts_dir: &Path) -> Vec<PageItem> {
@@ -1482,6 +1582,12 @@ async fn get_chapter_page_urls(
             return Ok(pages);
         }
     }
+    if host.contains("comic.naver.com") {
+        let pages = extract_naver_pages(client, chapter_url).await?;
+        if !pages.is_empty() {
+            return Ok(pages);
+        }
+    }
     if host.contains("hipmh") {
         let scripts_dir = repo_root.join("scripts");
         let pages = extract_hipmh_pages(chapter_url, &scripts_dir).await;
@@ -1754,11 +1860,16 @@ fn stitch_horizontal(image_bytes_list: &[Vec<u8>]) -> Option<Vec<u8>> {
 
 async fn fetch_image_bytes(client: &Client, url: &str, referer: &str) -> Option<Vec<u8>> {
     let mut current_url = url.to_string();
+    let effective_referer = if url.contains("image-comic.pstatic.net") {
+        "https://comic.naver.com"
+    } else {
+        referer
+    };
     for attempt in 0..3 {
         if let Ok(res) = client
             .get(&current_url)
             .header("User-Agent", USER_AGENT)
-            .header("Referer", referer)
+            .header("Referer", effective_referer)
             .header(
                 "Accept",
                 "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
@@ -2146,13 +2257,14 @@ async fn run_pipeline(
     let img_dir = tmp_dir.path().join("images");
     let _ = fs::create_dir_all(&img_dir);
 
-    println!("[AmoDL] Target: {} ({}) - {}", args.title, args.label, args.chapter_url);
+    let chapter_url = normalize_chapter_url(&args.chapter_url);
+    println!("[AmoDL] Target: {} ({}) - {}", args.title, args.label, chapter_url);
 
     progress
         .update(client, "🔍 در حال استخراج تصاویر چپتر...", 10, true)
         .await;
 
-    let pages = match get_chapter_page_urls(client, &args.chapter_url, repo_root).await {
+    let pages = match get_chapter_page_urls(client, &chapter_url, repo_root).await {
         Ok(p) => p,
         Err(AppError::ChapterLocked(cle)) => {
             let msg = if cle.is_empty() {
@@ -2245,7 +2357,7 @@ async fn run_pipeline(
 
     let images = download_all_images(
         pages,
-        &args.chapter_url,
+        &chapter_url,
         &img_dir,
         Arc::clone(&progress),
         client,
@@ -2530,5 +2642,26 @@ mod tests {
                 "https://example.com/uploads/series/sample/001/p-page2.webp",
             ]
         );
+
+        if let Ok(kayn_html) = std::fs::read_to_string("/tmp/audit_dump/source-audit-results/kayn.html") {
+            let kayn_pages = extract_valir_or_rsc_pages(&kayn_html, "https://kaynscans.com/series/comic/the-chaebol-familys-genius-monster/chapter/30");
+            assert_eq!(kayn_pages.len(), 15);
+            assert!(kayn_pages[0].contains("p-1fdac3fe-94ad-4c6a-a524-db9d5d7690a2.webp"));
+        }
+
+        if let Ok(elftoon_html) = std::fs::read_to_string("/tmp/audit_dump/source-audit-results/elftoon.html") {
+            let elftoon_pages = extract_valir_or_rsc_pages(&elftoon_html, "https://elftoon.net/series/who-let-him-cultivate-immortality/chapter/31");
+            assert_eq!(elftoon_pages.len(), 14);
+            assert!(elftoon_pages[0].contains("p-067ebcef-f168-4757-9953-cda7cf71196e.webp"));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_extract_naver_pages_live() {
+        let client = Client::new();
+        let tmp = tempfile::tempdir().unwrap();
+        let naver_url = "https://comic.naver.com/webtoon/detail?titleId=758037&no=1";
+        let pages = get_chapter_page_urls(&client, naver_url, tmp.path()).await.unwrap();
+        assert!(pages.len() >= 20, "Expected at least 20 pages from Naver chapter 1, got {}", pages.len());
     }
 }
