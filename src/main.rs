@@ -48,11 +48,11 @@ static AJAX_RE_FALLBACK: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 static LOCK_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?:this chapter is locked|chapter is locked|please purchase it to read|unlock(?:s)? for \d+ coins?|fast pass chapter|early access chapter)").unwrap()
+    Regex::new(r"(?i)(?:this chapter is locked|chapter is locked|locked chapter|premium chapter|please purchase it to read|unlock to continue reading|sign in to unlock|unlocking grants permanent access|unlock this (?:exciting )?chapter|unlock(?:s)? for \d+ coins?|cost to unlock|fast pass chapter|early access chapter|get coins to unlock|coins to read)").unwrap()
 });
 
 static PREM_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)-\s*premium\b|\bearly access\b").unwrap()
+    Regex::new(r"(?i)(?:-\s*premium\b|\bearly access\b|\[premium\]|\(premium\)|\bpremium chapter\b)").unwrap()
 });
 
 static MADARA_LOCK_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -1218,7 +1218,7 @@ async fn extract_html_pages(
 
         if LOCK_RE.is_match(&html_text) {
             return Err(AppError::ChapterLocked(
-                "این چپتر قفل است (نیاز به سکه یا خرید دارد).".to_string(),
+                "این چپتر قفل/پولی (Premium یا نیازمند سکه) است و هنوز رایگان نشده است.".to_string(),
             ));
         }
 
@@ -2737,5 +2737,17 @@ mod tests {
             normalize_chapter_url("https://example.com/manga/chapter-1"),
             "https://example.com/manga/chapter-1"
         );
+    }
+
+    #[test]
+    fn test_lock_re_detection() {
+        let elftoon_locked = r#"
+            <h3>Premium Chapter</h3>
+            <p>Chapter 48 - 48</p>
+            <p>Unlock to continue reading</p>
+            <a>Sign in to Unlock</a>
+            <p>Unlocking grants permanent access to this chapter</p>
+        "#;
+        assert!(LOCK_RE.is_match(elftoon_locked));
     }
 }
