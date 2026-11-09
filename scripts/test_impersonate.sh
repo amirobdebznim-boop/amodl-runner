@@ -64,30 +64,32 @@ echo "" >> impersonate_results.md
 cat impersonate_results.md
 
 echo "=== Detailed Inspection for GenzToons ==="
-$IMP_CHROME -s -L -o /tmp/genz_ch41.html "https://genztoons.org/series/the-absolute-being-s-modern-life/chapter-41"
+$IMP_CHROME -s -L -o /tmp/genz_ch41.html "https://genztoons.org/chapter/64c85111b46-65c77e18cf0/"
 echo "Ch41 HTML bytes: $(wc -c < /tmp/genz_ch41.html)"
 
-$IMP_CHROME -s -L -o /tmp/genz_ch1.html "https://genztoons.org/series/the-absolute-being-s-modern-life/chapter-1"
+$IMP_CHROME -s -L -o /tmp/genz_ch1.html "https://genztoons.org/chapter/64c85111b46-64c85c550a5/"
 echo "Ch1 HTML bytes: $(wc -c < /tmp/genz_ch1.html)"
 
-$IMP_CHROME -s -L -o /tmp/genz_series.html "https://genztoons.org/series/the-absolute-being-s-modern-life/"
-echo "Series HTML bytes: $(wc -c < /tmp/genz_series.html)"
+$IMP_CHROME -s -L -o /tmp/genz_ch45.html "https://genztoons.org/chapter/64c85111b46-65ed5731a30/"
+echo "Ch45 HTML bytes: $(wc -c < /tmp/genz_ch45.html)"
 
 echo "--- Ch41 Title & Meta ---"
 grep -i -o '<title[^>]*>[^<]*</title>' /tmp/genz_ch41.html || true
 
-echo "--- Ch41 Sample IMG tags ---"
-grep -i -o '<img[^>]*>' /tmp/genz_ch41.html | head -n 25 || true
+echo "--- Ch41 All Non-Icon IMG tags ---"
+grep -i -o '<img[^>]*>' /tmp/genz_ch41.html | grep -v "iconify" | head -n 35 || true
 
-echo "--- Ch41 Sample Scripts ---"
+echo "--- Ch41 All image-like URLs ---"
+grep -E -o 'https?://[^"'\'' ]+\.(webp|jpg|jpeg|png|avif)' /tmp/genz_ch41.html | head -n 35 || true
+grep -E -o 'https?://wsrv\.nl/\?url=[^"'\'' \)]+' /tmp/genz_ch41.html | head -n 35 || true
+grep -E -o 'https?://[a-zA-Z0-9.-]*meowing\.org/[^"'\'' \)]+' /tmp/genz_ch41.html | head -n 35 || true
+
+echo "--- Ch41 Scripts ---"
 grep -i -o '<script[^>]*>[^<]*</script>' /tmp/genz_ch41.html | head -n 15 || true
 
-echo "--- Ch41 ts_reader or JSON search ---"
-grep -i -E '(ts_reader|pages|images|chapter_data|wp-manga)' /tmp/genz_ch41.html | head -n 10 || true
-
-echo "--- Ch1 Sample IMG tags ---"
-grep -i -o '<img[^>]*>' /tmp/genz_ch1.html | head -n 20 || true
+echo "--- Ch41 Lock / Coin / Turnstile indicators ---"
+grep -i -E '(locked|premium|coin|turnstile|cloudflare)' /tmp/genz_ch41.html | head -n 10 || true
 
 cp /tmp/genz_ch41.html ./genz_ch41.html
 cp /tmp/genz_ch1.html ./genz_ch1.html
-cp /tmp/genz_series.html ./genz_series.html
+cp /tmp/genz_ch45.html ./genz_ch45.html
