@@ -22,4 +22,6 @@ jobs:
           name: impersonate-results
           path: |
             impersonate_results.md
-            elftoon_ch48.html
+            genz_ch41.html
+            genz_ch1.html
+            genz_series.html

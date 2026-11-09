@@ -20,8 +20,9 @@ TARGETS=(
   "ReManga|https://remanga.org/api/v3/titles/popular"
   "Comix|https://comix.to"
   "MangaFire|https://mangafire.to"
-  "Elftoon|https://elftoon.net/series/comic/permanently-one-hp-yet-im-still-invincible/chapter/48"
-  "Elftoon Base|https://elftoon.net/series/permanently-one-hp-yet-im-still-invincible/chapter/48"
+  "GenzToons Ch41|https://genztoons.org/series/the-absolute-being-s-modern-life/chapter-41"
+  "GenzToons Ch1|https://genztoons.org/series/the-absolute-being-s-modern-life/chapter-1"
+  "GenzToons Series|https://genztoons.org/series/the-absolute-being-s-modern-life/"
 )
 
 echo "# 🛡️ نتایج تست نفوذ و عبور از کلودفلر با TLS Impersonation (Chrome 116)" > impersonate_results.md
@@ -62,29 +63,31 @@ done
 echo "" >> impersonate_results.md
 cat impersonate_results.md
 
-echo "=== Comparative Inspection for Elftoon ==="
-# 1. Old test chapter (who-let-him-cultivate-immortality/chapter/31)
-$IMP_CHROME -s -L -o /tmp/elftoon_immortal.html "https://elftoon.net/series/who-let-him-cultivate-immortality/chapter/31"
-echo "Immortal ch31 images found:"
-grep -E -o 'https?://[^"'\'' \(\)]+\.(webp|jpg|jpeg|png|avif)' /tmp/elftoon_immortal.html | head -n 10 || true
-grep -E -o '(/[^\s"'\'']+\.(webp|jpg|jpeg|png|avif))' /tmp/elftoon_immortal.html | head -n 10 || true
+echo "=== Detailed Inspection for GenzToons ==="
+$IMP_CHROME -s -L -o /tmp/genz_ch41.html "https://genztoons.org/series/the-absolute-being-s-modern-life/chapter-41"
+echo "Ch41 HTML bytes: $(wc -c < /tmp/genz_ch41.html)"
 
-# 2. Same series, Chapter 1
-$IMP_CHROME -s -L -o /tmp/elftoon_ch1.html "https://elftoon.net/series/comic/permanently-one-hp-yet-im-still-invincible/chapter/1"
-echo "HP Chapter 1 images found:"
-grep -E -o 'https?://[^"'\'' \(\)]+\.(webp|jpg|jpeg|png|avif)' /tmp/elftoon_ch1.html | head -n 10 || true
-grep -E -o '(/[^\s"'\'']+\.(webp|jpg|jpeg|png|avif))' /tmp/elftoon_ch1.html | head -n 10 || true
+$IMP_CHROME -s -L -o /tmp/genz_ch1.html "https://genztoons.org/series/the-absolute-being-s-modern-life/chapter-1"
+echo "Ch1 HTML bytes: $(wc -c < /tmp/genz_ch1.html)"
 
-# 3. Check reader chunk
-$IMP_CHROME -s -L -o /tmp/reader_chunk.js "https://elftoon.net/_next/static/chunks/40436-15a989522a9d3ba5.js"
-echo "Reader chunk size: $(wc -c < /tmp/reader_chunk.js)"
-grep -i -o '[^";]*api[^";]*' /tmp/reader_chunk.js | head -n 20 || true
-grep -i -o '[^";]*fetch([^)]*)' /tmp/reader_chunk.js | head -n 20 || true
+$IMP_CHROME -s -L -o /tmp/genz_series.html "https://genztoons.org/series/the-absolute-being-s-modern-life/"
+echo "Series HTML bytes: $(wc -c < /tmp/genz_series.html)"
 
-# 4. Search all chunks referenced in ch48 for API or image URLs
-mkdir -p /tmp/chunks
-for chunk in $(grep -o '/_next/static/chunks/[^"]*' /tmp/elftoon_ch48.html | sort -u | head -n 20); do
-  $IMP_CHROME -s -L -o "/tmp/chunks/$(basename $chunk)" "https://elftoon.net$chunk"
-done
-echo "API endpoints across chunks:"
-grep -rhoE '["'\''/](api/[a-zA-Z0-9_/-]+)' /tmp/chunks/ | sort -u || true
+echo "--- Ch41 Title & Meta ---"
+grep -i -o '<title[^>]*>[^<]*</title>' /tmp/genz_ch41.html || true
+
+echo "--- Ch41 Sample IMG tags ---"
+grep -i -o '<img[^>]*>' /tmp/genz_ch41.html | head -n 25 || true
+
+echo "--- Ch41 Sample Scripts ---"
+grep -i -o '<script[^>]*>[^<]*</script>' /tmp/genz_ch41.html | head -n 15 || true
+
+echo "--- Ch41 ts_reader or JSON search ---"
+grep -i -E '(ts_reader|pages|images|chapter_data|wp-manga)' /tmp/genz_ch41.html | head -n 10 || true
+
+echo "--- Ch1 Sample IMG tags ---"
+grep -i -o '<img[^>]*>' /tmp/genz_ch1.html | head -n 20 || true
+
+cp /tmp/genz_ch41.html ./genz_ch41.html
+cp /tmp/genz_ch1.html ./genz_ch1.html
+cp /tmp/genz_series.html ./genz_series.html
