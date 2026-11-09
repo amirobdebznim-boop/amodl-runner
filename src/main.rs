@@ -2665,9 +2665,26 @@ mod tests {
     async fn test_extract_naver_pages_live() {
         let client = Client::new();
         let tmp = tempfile::tempdir().unwrap();
-        let naver_url = "https://comic.naver.com/webtoon/detail?titleId=758037&no=1";
-        let pages = get_chapter_page_urls(&client, naver_url, tmp.path()).await.unwrap();
-        assert!(pages.len() >= 20, "Expected at least 20 pages from Naver chapter 1, got {}", pages.len());
+
+        // 1. Desktop detail URL
+        let desktop_url = "https://comic.naver.com/webtoon/detail?titleId=758037&no=1";
+        let pages1 = get_chapter_page_urls(&client, desktop_url, tmp.path()).await.unwrap();
+        assert!(pages1.len() >= 20, "Expected at least 20 pages from Naver desktop ch 1, got {}", pages1.len());
+
+        // 2. Mobile detail URL
+        let mobile_url = "https://m.comic.naver.com/webtoon/detail?titleId=758037&no=2";
+        let pages2 = get_chapter_page_urls(&client, mobile_url, tmp.path()).await.unwrap();
+        assert!(pages2.len() >= 20, "Expected at least 20 pages from Naver mobile ch 2, got {}", pages2.len());
+
+        // 3. Detail URL with extra query params
+        let param_url = "https://comic.naver.com/webtoon/detail?titleId=758037&no=1&week=mon&page=1";
+        let pages3 = get_chapter_page_urls(&client, param_url, tmp.path()).await.unwrap();
+        assert_eq!(pages1.len(), pages3.len(), "Expected same page count with extra query params");
+
+        // 4. Series list URL fallback (no "no=" specified -> resolves to latest chapter)
+        let list_url = "https://comic.naver.com/webtoon/list?titleId=758037";
+        let pages_list = get_chapter_page_urls(&client, list_url, tmp.path()).await.unwrap();
+        assert!(pages_list.len() >= 10, "Expected pages from latest episode via list URL fallback");
     }
 
     #[test]
