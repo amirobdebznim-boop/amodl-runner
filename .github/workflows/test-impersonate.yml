@@ -20,4 +20,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: impersonate-results
-          path: impersonate_results.md
+          path: |
+            impersonate_results.md
+            elftoon_ch48.html

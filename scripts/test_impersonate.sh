@@ -61,3 +61,24 @@ done
 
 echo "" >> impersonate_results.md
 cat impersonate_results.md
+
+echo "=== Detailed Inspection for Elftoon Chapter 48 ==="
+$IMP_CHROME -s -L -o /tmp/elftoon_ch48.html "https://elftoon.net/series/comic/permanently-one-hp-yet-im-still-invincible/chapter/48"
+echo "HTML bytes: $(wc -c < /tmp/elftoon_ch48.html)"
+
+echo "--- Sample IMG tags ---"
+grep -i -o '<img[^>]*>' /tmp/elftoon_ch48.html | head -n 25 || true
+
+echo "--- Image URLs (absolute) ---"
+grep -E -o 'https?://[^"'\'' \(\)]+\.(webp|jpg|jpeg|png|avif)' /tmp/elftoon_ch48.html | head -n 25 || true
+
+echo "--- Image paths (relative) ---"
+grep -E -o '(/[^\s"'\'']+\.(webp|jpg|jpeg|png|avif))' /tmp/elftoon_ch48.html | head -n 25 || true
+
+echo "--- Next.js flight data search ---"
+grep -o 'self\.__next_f\.push([^)]*' /tmp/elftoon_ch48.html | grep -i "chapter" | head -n 5 || true
+
+echo "--- All scripts sample ---"
+grep -i -o '<script[^>]*>[^<]*</script>' /tmp/elftoon_ch48.html | head -n 10 || true
+
+cp /tmp/elftoon_ch48.html ./elftoon_ch48.html
