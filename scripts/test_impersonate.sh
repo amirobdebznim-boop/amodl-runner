@@ -20,6 +20,8 @@ TARGETS=(
   "ReManga|https://remanga.org/api/v3/titles/popular"
   "Comix|https://comix.to"
   "MangaFire|https://mangafire.to"
+  "Elftoon|https://elftoon.net/series/comic/permanently-one-hp-yet-im-still-invincible/chapter/48"
+  "Elftoon Base|https://elftoon.net/series/permanently-one-hp-yet-im-still-invincible/chapter/48"
 )
 
 echo "# 🛡️ نتایج تست نفوذ و عبور از کلودفلر با TLS Impersonation (Chrome 116)" > impersonate_results.md
