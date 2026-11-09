@@ -1303,7 +1303,7 @@ async fn extract_html_pages(
             &["data-src", "data-lazy-src", "src"],
         ),
         (
-            "#chapter-reader img, img.chapter-img, div.reader-area img",
+            "#chapter-reader img, img.chapter-img, div.reader-area img, img.mgr-page",
             &["data-src", "data-lazy-src", "src"],
         ),
         (
