@@ -1187,53 +1187,6 @@ async fn extract_html_pages(
         ));
     }
 
-    // Check lock selectors & regexes in a sync block so `Html` (non-Send) is dropped before `.await`
-    {
-        let doc = Html::parse_document(&html_text);
-        let lock_selectors = [
-            ".lock-container",
-            ".lock-card",
-            ".lock-status",
-            ".fa-coins",
-            "[class*='chapter-lock']",
-            "[class*='coin-lock']",
-            "[class*='early-access']",
-            "[class*='badge-locked']",
-            "[data-bs-target*='locked']",
-        ];
-        for ls in lock_selectors {
-            if let Ok(sel) = Selector::parse(ls) {
-                if let Some(el) = doc.select(&sel).next() {
-                    let txt: String = el.text().collect::<Vec<_>>().join(" ").trim().to_string();
-                    let detail = if txt.is_empty() {
-                        String::new()
-                    } else {
-                        let truncated: String = txt.chars().take(80).collect();
-                        format!(" ({truncated})")
-                    };
-                    return Err(AppError::ChapterLocked(format!("این چپتر قفل است{detail}")));
-                }
-            }
-        }
-
-        if LOCK_RE.is_match(&html_text) {
-            return Err(AppError::ChapterLocked(
-                "این چپتر قفل/پولی (Premium یا نیازمند سکه) است و هنوز رایگان نشده است.".to_string(),
-            ));
-        }
-
-        if let Ok(title_sel) = Selector::parse("title") {
-            if let Some(title_el) = doc.select(&title_sel).next() {
-                let title_txt: String = title_el.text().collect();
-                if PREM_RE.is_match(&title_txt) {
-                    return Err(AppError::ChapterLocked(
-                        "این چپتر پولی (Premium/Early Access) است و هنوز رایگان نشده است."
-                            .to_string(),
-                    ));
-                }
-            }
-        }
-    }
 
     let ts_pages = extract_ts_reader_pages(&html_text, &chapter_url)?;
     if !ts_pages.is_empty() {
@@ -1350,6 +1303,51 @@ async fn extract_html_pages(
             let deduped = dedup_strings(urls);
             if deduped.len() >= 2 {
                 return Ok(deduped.into_iter().map(PageItem::Single).collect());
+            }
+        }
+    }
+
+    // If no reader pages were found, verify if chapter is locked/premium
+    let lock_selectors = [
+        ".lock-container",
+        ".lock-card",
+        ".lock-status",
+        ".fa-coins",
+        "[class*='chapter-lock']",
+        "[class*='coin-lock']",
+        "[class*='early-access']",
+        "[class*='badge-locked']",
+        "[data-bs-target*='locked']",
+    ];
+    for ls in lock_selectors {
+        if let Ok(sel) = Selector::parse(ls) {
+            if let Some(el) = doc.select(&sel).next() {
+                let txt: String = el.text().collect::<Vec<_>>().join(" ").trim().to_string();
+                let detail = if txt.is_empty() {
+                    String::new()
+                } else {
+                    let truncated: String = txt.chars().take(80).collect();
+                    format!(" ({truncated})")
+                };
+                return Err(AppError::ChapterLocked(format!("این چپتر قفل است{detail}")));
+            }
+        }
+    }
+
+    if LOCK_RE.is_match(&html_text) {
+        return Err(AppError::ChapterLocked(
+            "این چپتر قفل/پولی (Premium یا نیازمند سکه) است و هنوز رایگان نشده است.".to_string(),
+        ));
+    }
+
+    if let Ok(title_sel) = Selector::parse("title") {
+        if let Some(title_el) = doc.select(&title_sel).next() {
+            let title_txt: String = title_el.text().collect();
+            if PREM_RE.is_match(&title_txt) {
+                return Err(AppError::ChapterLocked(
+                    "این چپتر پولی (Premium/Early Access) است و هنوز رایگان نشده است."
+                        .to_string(),
+                ));
             }
         }
     }
