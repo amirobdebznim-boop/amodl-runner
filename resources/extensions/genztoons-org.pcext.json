@@ -1,0 +1,12 @@
+{
+  "id": "genztoons.org",
+  "name": "Genz Toon",
+  "lang": "en",
+  "version": "1.0.0",
+  "baseUrl": "https://genztoons.org",
+  "kind": "universal",
+  "nsfw": false,
+  "details":  {"url": "{baseUrl}/series/{mangaUrl}/"},
+  "chapters": {"url": "{baseUrl}/series/{mangaUrl}/"},
+  "pages":    {"url": "{baseUrl}/chapter/{chapterUrl}/", "image_selector": "#pages img[uid], img.myImage[uid]", "image_attr": "uid"}
+}

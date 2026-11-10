@@ -1251,6 +1251,29 @@ async fn extract_html_pages(
     }
 
     let doc = Html::parse_document(&html_text);
+
+    // GenzToons / Meowing uid reader pattern
+    if let Ok(uid_sel) = Selector::parse("#pages img[uid], img.myImage[uid], div#pages img[uid]") {
+        let mut uid_urls = Vec::new();
+        for el in doc.select(&uid_sel) {
+            let v = el.value();
+            if let Some(uid) = v.attr("uid").or_else(|| v.attr("data-uid")) {
+                let clean_uid = uid.trim();
+                if !clean_uid.is_empty() {
+                    let full_url = if clean_uid.starts_with("http") {
+                        clean_uid.to_string()
+                    } else {
+                        format!("https://cdn.meowing.org/uploads/{clean_uid}")
+                    };
+                    uid_urls.push(full_url);
+                }
+            }
+        }
+        let deduped = dedup_strings(uid_urls);
+        if deduped.len() >= 2 {
+            return Ok(deduped.into_iter().map(PageItem::Single).collect());
+        }
+    }
     if let Some(pages_cfg) = manifest.and_then(|m| m.get("pages")) {
         if let Some(sel_str) = pages_cfg.get("image_selector").and_then(|v| v.as_str()) {
             let attr = pages_cfg
@@ -2749,5 +2772,26 @@ mod tests {
             <p>Unlocking grants permanent access to this chapter</p>
         "#;
         assert!(LOCK_RE.is_match(elftoon_locked));
+    }
+
+    #[test]
+    fn test_genztoons_uid_extraction() {
+        let sample_html = r#"
+            <div id="pages">
+                <img src="/assets/images/placeholder.svg" uid="65c77e18cf0.avif" class="lazy w-full myImage">
+                <img src="/assets/images/placeholder.svg" uid="65c77e1c5d4.avif" class="lazy w-full myImage">
+                <img src="/assets/images/placeholder.svg" uid="65c77e1daeb.avif" class="lazy w-full myImage">
+            </div>
+        "#;
+        let doc = Html::parse_document(sample_html);
+        let uid_sel = Selector::parse("#pages img[uid], img.myImage[uid], div#pages img[uid]").unwrap();
+        let mut urls = Vec::new();
+        for el in doc.select(&uid_sel) {
+            if let Some(uid) = el.value().attr("uid") {
+                urls.push(format!("https://cdn.meowing.org/uploads/{uid}"));
+            }
+        }
+        assert_eq!(urls.len(), 3);
+        assert_eq!(urls[0], "https://cdn.meowing.org/uploads/65c77e18cf0.avif");
     }
 }
