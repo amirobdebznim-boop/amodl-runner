@@ -17,7 +17,7 @@ use url::Url;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
 
-const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 AmoDL/0.3";
+const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36";
 
 static AD_IMG_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\b(?:logo|banner|discord|patreon|donation|avatar|advertisement)\b|/ads/|\bads\b|[._-]ads[._-]").unwrap()
@@ -69,6 +69,10 @@ static SANITIZE_RE: LazyLock<Regex> = LazyLock::new(|| {
 
 static DUP_CH_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)/chapter[-_]?(\d+(?:\.\d+)?)/chapter[-_]?(\d+(?:\.\d+)?)/?$").unwrap()
+});
+
+static CW_PAGES_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"id=["']cwPages["'][^>]*>([^<]+)</script>"#).unwrap()
 });
 
 fn normalize_chapter_url(url: &str) -> String {
@@ -998,6 +1002,27 @@ fn extract_valir_or_rsc_pages(html_text: &str, base_url: &str) -> Vec<String> {
     }
 }
 
+fn extract_cw_pages(html: &str) -> Vec<String> {
+    if let Some(caps) = CW_PAGES_RE.captures(html) {
+        let b64_text = caps[1].trim();
+        use base64::{engine::general_purpose::STANDARD, Engine as _};
+        if let Ok(raw) = STANDARD.decode(b64_text) {
+            if raw.len() > 16 {
+                let mut out = vec![0u8; raw.len() - 16];
+                for i in 0..out.len() {
+                    out[i] = raw[i + 16] ^ raw[i % 16];
+                }
+                if let Ok(json_str) = std::str::from_utf8(&out) {
+                    if let Ok(urls) = serde_json::from_str::<Vec<String>>(json_str) {
+                        return dedup_strings(urls);
+                    }
+                }
+            }
+        }
+    }
+    vec![]
+}
+
 async fn extract_ajax_pages(
     client: &Client,
     html_text: &str,
@@ -1129,6 +1154,37 @@ async fn extract_ajax_pages(
     }
 }
 
+async fn fetch_html_via_cffi(url: &str) -> Option<String> {
+    let py_code = r#"
+import sys
+try:
+    import curl_cffi
+except ImportError:
+    import subprocess
+    subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "--no-cache-dir", "curl_cffi"], check=True)
+from curl_cffi import requests
+url = sys.argv[1]
+try:
+    r = requests.get(url, impersonate="chrome120", timeout=20)
+    if r.status_code == 200:
+        sys.stdout.write(r.text)
+except Exception:
+    pass
+"#;
+    let out = Command::new("python3")
+        .args(["-c", py_code, url])
+        .output()
+        .await
+        .ok()?;
+    if out.status.success() && !out.stdout.is_empty() {
+        let text = String::from_utf8_lossy(&out.stdout).to_string();
+        if !is_cloudflare_challenge(&text) {
+            return Some(text);
+        }
+    }
+    None
+}
+
 async fn extract_html_pages(
     client: &Client,
     mut chapter_url: String,
@@ -1166,14 +1222,15 @@ async fn extract_html_pages(
             .await
         {
             let body = String::from_utf8_lossy(&out.stdout).to_string();
-            if is_cloudflare_challenge(&body) {
-                return Err(AppError::CloudflareBlocked(
-                    "این سورس دارای سیستم ضدربات Cloudflare Turnstile است و در حال حاضر دانلود خودکار آن مسدود می‌باشد.".to_string(),
-                ));
-            }
             if !body.is_empty() {
                 html_text = body;
             }
+        }
+    }
+
+    if html_text.is_empty() || is_cloudflare_challenge(&html_text) {
+        if let Some(cffi_html) = fetch_html_via_cffi(&chapter_url).await {
+            html_text = cffi_html;
         }
     }
 
@@ -1191,6 +1248,11 @@ async fn extract_html_pages(
     let ts_pages = extract_ts_reader_pages(&html_text, &chapter_url)?;
     if !ts_pages.is_empty() {
         return Ok(ts_pages.into_iter().map(PageItem::Single).collect());
+    }
+
+    let cw_pages = extract_cw_pages(&html_text);
+    if !cw_pages.is_empty() {
+        return Ok(cw_pages.into_iter().map(PageItem::Single).collect());
     }
 
     let rsc_pages = extract_valir_or_rsc_pages(&html_text, &chapter_url);
@@ -1237,14 +1299,19 @@ async fn extract_html_pages(
                 let mut urls = Vec::new();
                 for el in doc.select(&sel) {
                     let v = el.value();
-                    let u = v
-                        .attr(attr)
-                        .or_else(|| v.attr("data-src"))
-                        .or_else(|| v.attr("data-lazy-src"))
-                        .or_else(|| v.attr("data-cfsrc"))
-                        .or_else(|| v.attr("src"));
+                    let pick = |a: &str| {
+                        v.attr(a).filter(|s| !s.trim().starts_with("data:") && !s.trim().is_empty())
+                    };
+                    let u = pick(attr)
+                        .or_else(|| pick("data-original-src"))
+                        .or_else(|| pick("data-original"))
+                        .or_else(|| pick("data-src"))
+                        .or_else(|| pick("data-lazy-src"))
+                        .or_else(|| pick("data-default-src"))
+                        .or_else(|| pick("data-cfsrc"))
+                        .or_else(|| pick("src"));
                     if let Some(u) = u {
-                        if !u.starts_with("data:") && !AD_IMG_RE.is_match(u) {
+                        if !AD_IMG_RE.is_match(u) {
                             urls.push(resolve_url(&chapter_url, u.trim()));
                         }
                     }
@@ -1259,32 +1326,32 @@ async fn extract_html_pages(
 
     let candidates: &[(&str, &[&str])] = &[
         (
+            "div.chapter-body img, div.reading-content img, .wp-manga-chapter-img",
+            &["data-original-src", "data-original", "data-src", "data-lazy-src", "src"],
+        ),
+        (
             ".comic-contain img, .comic-contain amp-img, amp-img.comic-contain__item",
-            &["data-src", "src"],
+            &["data-original-src", "data-original", "data-src", "src"],
         ),
         (
             "#readerarea img, .readerarea img, div#readerarea img",
-            &["data-src", "data-lazy-src", "src", "data-original"],
-        ),
-        (
-            "div.reading-content img, .wp-manga-chapter-img",
-            &["data-src", "data-lazy-src", "src"],
+            &["data-original-src", "data-original", "data-src", "data-lazy-src", "src"],
         ),
         (
             "div#chapter-content img, div.chapter-images img",
-            &["data-src", "data-lazy-src", "src"],
+            &["data-original-src", "data-original", "data-src", "data-lazy-src", "src"],
         ),
         (
             ".page-break img, .chapter-image img, div[class*='page'] img",
-            &["data-src", "data-lazy-src", "src"],
+            &["data-original-src", "data-original", "data-src", "data-lazy-src", "src"],
         ),
         (
             "#chapter-reader img, img.chapter-img, div.reader-area img, img.mgr-page",
-            &["data-src", "data-lazy-src", "src"],
+            &["data-original-src", "data-original", "data-src", "data-lazy-src", "src"],
         ),
         (
             "img[src*='chapter'], img[data-src*='chapter'], img.imgholder",
-            &["data-src", "src"],
+            &["data-original-src", "data-original", "data-src", "src"],
         ),
     ];
 
@@ -1293,9 +1360,11 @@ async fn extract_html_pages(
             let mut urls = Vec::new();
             for el in doc.select(&sel) {
                 let v = el.value();
-                let u = attrs.iter().find_map(|a| v.attr(a));
+                let u = attrs.iter().find_map(|a| {
+                    v.attr(a).filter(|s| !s.trim().starts_with("data:") && !s.trim().is_empty())
+                });
                 if let Some(u) = u {
-                    if !u.starts_with("data:") && !AD_IMG_RE.is_match(u) {
+                    if !AD_IMG_RE.is_match(u) {
                         urls.push(resolve_url(&chapter_url, u.trim()));
                     }
                 }
@@ -1321,7 +1390,17 @@ async fn extract_html_pages(
     ];
     for ls in lock_selectors {
         if let Ok(sel) = Selector::parse(ls) {
-            if let Some(el) = doc.select(&sel).next() {
+            for el in doc.select(&sel) {
+                let in_modal = el.ancestors().any(|a| {
+                    if let Some(elem) = a.value().as_element() {
+                        elem.id() == Some("lockedChapterModal") || elem.classes().any(|c| c == "modal")
+                    } else {
+                        false
+                    }
+                });
+                if in_modal {
+                    continue;
+                }
                 let txt: String = el.text().collect::<Vec<_>>().join(" ").trim().to_string();
                 let detail = if txt.is_empty() {
                     String::new()
@@ -1978,6 +2057,137 @@ async fn download_single_image(
     }
 }
 
+async fn download_all_images_cffi(
+    page_urls: &[PageItem],
+    referer: &str,
+    output_dir: &Path,
+) -> Vec<PathBuf> {
+    let mut items = Vec::new();
+    for (idx, p) in page_urls.iter().enumerate() {
+        if let PageItem::Single(u) = p {
+            items.push((idx + 1, u.clone()));
+        }
+    }
+    if items.is_empty() {
+        return vec![];
+    }
+
+    let clean_referer = referer.split('#').next().unwrap_or(referer);
+    let payload = serde_json::json!({
+        "items": items,
+        "referer": clean_referer,
+        "output_dir": output_dir.to_str().unwrap_or(""),
+    });
+
+    let py_code = r#"
+import sys, json, os, asyncio
+
+try:
+    import curl_cffi
+except ImportError:
+    import subprocess
+    subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "--no-cache-dir", "curl_cffi"], check=True)
+
+from curl_cffi.requests import AsyncSession
+
+data = json.load(sys.stdin)
+items = data.get("items", [])
+referer = data.get("referer", "")
+out_dir = data.get("output_dir", "")
+os.makedirs(out_dir, exist_ok=True)
+
+def detect_ext(content):
+    if len(content) < 8: return ".jpg"
+    if content.startswith(b"\xff\xd8\xff"): return ".jpg"
+    if content.startswith(b"\x89PNG"): return ".png"
+    if content.startswith(b"RIFF") and b"WEBP" in content[:16]: return ".webp"
+    if content.startswith(b"GIF8"): return ".gif"
+    if b"ftypavif" in content[:32] or b"ftypavis" in content[:32]: return ".avif"
+    return ".jpg"
+
+async def main():
+    sem = asyncio.Semaphore(20)
+    async with AsyncSession(impersonate="chrome120") as s:
+        async def fetch(idx, url):
+            async with sem:
+                headers = {}
+                if referer:
+                    headers["Referer"] = referer
+                for attempt in range(3):
+                    try:
+                        r = await s.get(url, headers=headers, timeout=15)
+                        if r.status_code == 200 and len(r.content) >= 32:
+                            ext = detect_ext(r.content)
+                            fn = os.path.join(out_dir, f"{idx:04d}{ext}")
+                            with open(fn, "wb") as f:
+                                f.write(r.content)
+                            return fn
+                    except Exception:
+                        await asyncio.sleep(0.2 * (attempt + 1))
+            return None
+
+        tasks = [fetch(idx, u) for (idx, u) in items]
+        results = await asyncio.gather(*tasks)
+        files = [r for r in results if r]
+        files.sort()
+        print(json.dumps({"downloaded": len(files), "files": files}))
+
+asyncio.run(main())
+"#;
+
+    let mut child = match Command::new("python3")
+        .arg("-c")
+        .arg(py_code)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::inherit())
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("[AmoDL] Failed to spawn python3 cffi helper: {e}");
+            return vec![];
+        }
+    };
+
+    if let Some(mut stdin) = child.stdin.take() {
+        use tokio::io::AsyncWriteExt;
+        let json_bytes = serde_json::to_vec(&payload).unwrap_or_default();
+        let _ = stdin.write_all(&json_bytes).await;
+        let _ = stdin.flush().await;
+        drop(stdin);
+    }
+
+    let output = match child.wait_with_output().await {
+        Ok(o) if o.status.success() => o,
+        Ok(o) => {
+            eprintln!("[AmoDL] python3 cffi helper exited with error code: {:?}", o.status.code());
+            return vec![];
+        }
+        Err(e) => {
+            eprintln!("[AmoDL] python3 cffi helper execution failed: {e}");
+            return vec![];
+        }
+    };
+
+    let Ok(res) = serde_json::from_slice::<Value>(&output.stdout) else {
+        return vec![];
+    };
+
+    let mut paths = Vec::new();
+    if let Some(files) = res.get("files").and_then(|v| v.as_array()) {
+        for f in files {
+            if let Some(p) = f.as_str() {
+                let pb = PathBuf::from(p);
+                if pb.exists() {
+                    paths.push(pb);
+                }
+            }
+        }
+    }
+    paths
+}
+
 async fn download_all_images(
     page_urls: Vec<PageItem>,
     referer: &str,
@@ -1985,6 +2195,7 @@ async fn download_all_images(
     progress: Arc<TelegramProgress>,
     client: &Client,
 ) -> Vec<PathBuf> {
+    let page_urls_backup = page_urls.clone();
     let sem = Arc::new(Semaphore::new(25));
     let total = page_urls.len();
     let completed = Arc::new(Mutex::new(0usize));
@@ -2025,6 +2236,32 @@ async fn download_all_images(
             files.push(path);
         }
     }
+
+    if (files.len() < 1 || (files.len() as f64) < (total as f64) * 0.5) && !page_urls_backup.is_empty() {
+        println!(
+            "[AmoDL] Standard download retrieved only {}/{} images. Falling back to browser impersonation (curl_cffi)...",
+            files.len(),
+            total
+        );
+        progress
+            .update(
+                client,
+                "🛡 در حال دریافت با لایه ضد تحریم (Bypass CDN)...",
+                35,
+                false,
+            )
+            .await;
+        let cffi_files = download_all_images_cffi(&page_urls_backup, referer, output_dir).await;
+        if cffi_files.len() > files.len() {
+            println!(
+                "[AmoDL] Browser impersonation fallback retrieved {}/{} images",
+                cffi_files.len(),
+                total
+            );
+            files = cffi_files;
+        }
+    }
+
     files
 }
 
@@ -2791,5 +3028,82 @@ mod tests {
         }
         assert_eq!(urls.len(), 3);
         assert_eq!(urls[0], "https://cdn.meowing.org/uploads/65c77e18cf0.avif");
+    }
+
+    #[test]
+    fn test_lazy_data_original_src_extraction() {
+        let sample_html = r#"
+            <div class="chapter-body">
+                <img src="https://mg.mgread.io/11140/146/1.jpg" alt="Image 1">
+                <img data-original-src="https://mg.mgread.io/11140/146/2.jpg" src="data:image/svg+xml,%3Csvg%3E%3C/svg%3E" alt="Image 2">
+                <img data-original-src="https://mg.mgread.io/11140/146/3.jpg" src="data:image/svg+xml,%3Csvg%3E%3C/svg%3E" alt="Image 3">
+            </div>
+        "#;
+        let doc = Html::parse_document(sample_html);
+        let sel = Selector::parse("div.chapter-body img").unwrap();
+        let mut urls = Vec::new();
+        for el in doc.select(&sel) {
+            let v = el.value();
+            let pick = |a: &str| {
+                v.attr(a).filter(|s| !s.trim().starts_with("data:") && !s.trim().is_empty())
+            };
+            let u = pick("data-original-src")
+                .or_else(|| pick("data-original"))
+                .or_else(|| pick("data-src"))
+                .or_else(|| pick("src"));
+            if let Some(u) = u {
+                urls.push(u.to_string());
+            }
+        }
+        assert_eq!(urls.len(), 3);
+        assert_eq!(urls[0], "https://mg.mgread.io/11140/146/1.jpg");
+        assert_eq!(urls[1], "https://mg.mgread.io/11140/146/2.jpg");
+        assert_eq!(urls[2], "https://mg.mgread.io/11140/146/3.jpg");
+    }
+
+    #[test]
+    fn test_extract_cw_pages() {
+        // Construct an encrypted cwPages payload: 16 byte key + XOR payload
+        let key = b"1234567890123456";
+        let json_payload = br#"["https://cdn.example.com/p1.webp","https://cdn.example.com/p2.webp"]"#;
+        let mut raw = Vec::new();
+        raw.extend_from_slice(key);
+        for (i, b) in json_payload.iter().enumerate() {
+            raw.push(b ^ key[i % 16]);
+        }
+        use base64::{engine::general_purpose::STANDARD, Engine as _};
+        let b64 = STANDARD.encode(&raw);
+        let html = format!(r#"<html><body><script type="text/plain" id="cwPages">{b64}</script><div class="modal" id="lockedChapterModal"><div class="chapter-lock-overlay"></div></div></body></html>"#);
+
+        let pages = extract_cw_pages(&html);
+        assert_eq!(pages.len(), 2);
+        assert_eq!(pages[0], "https://cdn.example.com/p1.webp");
+        assert_eq!(pages[1], "https://cdn.example.com/p2.webp");
+    }
+
+    #[tokio::test]
+    async fn test_download_all_images_cffi_live() {
+        let tmp = tempfile::tempdir().unwrap();
+        let pages = vec![
+            PageItem::Single("https://s3.manhuatop.org/manga_b64a468079ff608f1e478971284e259d/v2/chapter-146/ch-146-img-1.jpg".to_string()),
+        ];
+        let files = download_all_images_cffi(&pages, "https://manhuatop.org/", tmp.path()).await;
+        assert_eq!(files.len(), 1);
+        assert!(files[0].exists());
+        let meta = std::fs::metadata(&files[0]).unwrap();
+        assert!(meta.len() > 1000);
+    }
+
+    #[tokio::test]
+    async fn test_manhuatop_chapter_extraction_and_download_live() {
+        let client = Client::new();
+        let tmp = tempfile::tempdir().unwrap();
+        let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().parent().unwrap();
+        let url = "https://manhuatop.org/manhua/please-give-me-the-pacifier/chapter-146/#image-12";
+        let pages = get_chapter_page_urls(&client, url, repo_root).await.unwrap();
+        assert!(pages.len() >= 50, "Expected at least 50 pages from manhuatop, got {}", pages.len());
+        let subset = pages[..2].to_vec();
+        let files = download_all_images_cffi(&subset, url, tmp.path()).await;
+        assert_eq!(files.len(), 2);
     }
 }
