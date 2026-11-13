@@ -3106,4 +3106,19 @@ mod tests {
         let files = download_all_images_cffi(&subset, url, tmp.path()).await;
         assert_eq!(files.len(), 2);
     }
+
+    #[tokio::test]
+    async fn test_check_three_sources_live() {
+        let client = Client::new();
+        let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().parent().unwrap();
+
+        let res1 = get_chapter_page_urls(&client, "https://manhuatop.org/manhua/please-give-me-the-pacifier/chapter-146/#image-12", repo_root).await;
+        println!("ManhuaTop: {:?}", res1.as_ref().map(|p| p.len()));
+
+        let res2 = get_chapter_page_urls(&client, "https://rinkocomics.com/chapter/please-give-me-the-pacifier-chapter-146/", repo_root).await;
+        println!("RinkoComics: {:?}", res2.as_ref().map(|p| p.len()));
+
+        let res3 = get_chapter_page_urls(&client, "https://mgread.io/manga/please-give-me-the-pacifier/chapter-146/", repo_root).await;
+        println!("Mgread: {:?}", res3.as_ref().map(|p| p.len()));
+    }
 }
