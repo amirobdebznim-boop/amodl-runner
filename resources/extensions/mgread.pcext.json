@@ -55,6 +55,6 @@
   "pages": {
     "url": "{chapterUrl}",
     "image_selector": "div.chapter-body img",
-    "image_attr": "src"
+    "image_attr": "data-original-src"
   }
 }

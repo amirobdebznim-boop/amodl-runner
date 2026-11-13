@@ -72,6 +72,10 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Set up Python and curl_cffi (Cloudflare TLS impersonation)
+        run: |
+          pip3 install --no-cache-dir curl_cffi
+
       - name: Cache precompiled telegram_downloader binary
         id: cache-bin
         uses: actions/cache@v4
