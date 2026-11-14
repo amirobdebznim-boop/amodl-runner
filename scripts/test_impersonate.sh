@@ -97,3 +97,5 @@ cp /tmp/genz_ch1.html ./genz_ch1.html
 cp /tmp/genz_ch45.html ./genz_ch45.html
 
 curl -sL "https://divascans.org/series/comic/supercritical-hell/chapter/13" -H "User-Agent: Mozilla/5.0" > diva_ch13.html
+
+$IMP_CHROME -sL "https://kaynscans.com/series/comic/the-strongest-level-0-completely-unrivaled-with-analysis-skills/chapter/67" > kayn_ch67.html
