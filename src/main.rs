@@ -32,7 +32,7 @@ static MANGADEX_RE2: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 static VALIR_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?:\\"|")imageUrl(?:\\"|")\s*:\s*(?:\\"|")([^"\\]+(?:\\.[^"\\]*)*)(?:\\"|")"#).unwrap()
+    Regex::new(r#"(?:\\"|")imageUrl(?:\\"|")\s*:\s*(?:\\"|")((?:https?:|/)[^"\\\s]+)"#).unwrap()
 });
 
 static NEXT_SERIES_IMG_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -959,8 +959,18 @@ fn extract_valir_or_rsc_pages(html_text: &str, base_url: &str) -> Vec<String> {
         }
     }
     let deduped = dedup_strings(pages);
-    if deduped.len() >= 2 {
-        return deduped;
+    let p_pages: Vec<String> = deduped
+        .iter()
+        .filter(|s| s.contains("/p-"))
+        .cloned()
+        .collect();
+    let chosen = if p_pages.len() >= 2 {
+        p_pages
+    } else {
+        deduped
+    };
+    if chosen.len() >= 2 {
+        return chosen;
     }
 
     // Fallback: Next.js RSC manga series images (e.g. Kayn Scans, ElfToon)
@@ -2964,6 +2974,25 @@ mod tests {
             assert_eq!(elftoon_pages.len(), 14);
             assert!(elftoon_pages[0].contains("p-067ebcef-f168-4757-9953-cda7cf71196e.webp"));
         }
+
+        if let Ok(diva_html) = std::fs::read_to_string("/tmp/diva_test/impersonate-results/diva_ch13.html") {
+            let diva_pages = extract_valir_or_rsc_pages(&diva_html, "https://divascans.org/series/comic/supercritical-hell/chapter/13");
+            assert_eq!(diva_pages.len(), 10);
+            assert!(diva_pages[0].contains("p-f3dbd655-8c7d-4528-bb3d-3e0703128056.webp"));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_divascans_download_live() {
+        let tmp = tempfile::tempdir().unwrap();
+        let html = std::fs::read_to_string("/tmp/diva_test/impersonate-results/diva_ch13.html").unwrap();
+        let pages: Vec<String> = extract_valir_or_rsc_pages(&html, "https://divascans.org/series/comic/supercritical-hell/chapter/13");
+        assert_eq!(pages.len(), 10);
+        let items: Vec<PageItem> = pages.into_iter().map(PageItem::Single).collect();
+        let files = download_all_images_cffi(&items[..2], "https://divascans.org/", tmp.path()).await;
+        assert_eq!(files.len(), 2);
+        assert!(files[0].exists());
+        assert!(std::fs::metadata(&files[0]).unwrap().len() > 10000);
     }
 
     #[tokio::test]
