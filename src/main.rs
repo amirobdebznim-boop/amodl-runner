@@ -2947,6 +2947,21 @@ mod tests {
     }
 
     #[test]
+    fn test_lagoonscans_manifest_and_ts_reader() {
+        let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let manifests = load_manifests(repo_root);
+        let m = find_matching_manifest(&manifests, "https://lagoonscans.com/rise-of-the-limitless-necromancer-chapter-51/");
+        assert!(m.is_some(), "lagoonscans manifest should be found");
+        assert_eq!(m.unwrap()["id"], "lagoonscans.com");
+
+        let sample_html = r#"<div id="readerarea"></div><script>ts_reader.run({"post_id":77194,"sources":[{"source":"Server 1","images":["https:\/\/lagoonscans.com\/wp-content\/uploads\/2026\/11\/01-266.webp","https:\/\/lagoonscans.com\/wp-content\/uploads\/2026\/11\/02-266.webp"]}]});</script>"#;
+        let pages = extract_ts_reader_pages(sample_html, "https://lagoonscans.com/rise-of-the-limitless-necromancer-chapter-51/").unwrap();
+        assert_eq!(pages.len(), 2);
+        assert_eq!(pages[0], "https://lagoonscans.com/wp-content/uploads/2026/11/01-266.webp");
+        assert_eq!(pages[1], "https://lagoonscans.com/wp-content/uploads/2026/11/02-266.webp");
+    }
+
+    #[test]
     fn test_detect_image_ext() {
         assert_eq!(detect_image_ext(b"\xff\xd8\xff\xe0\x00\x10JFIF"), Some(".jpg"));
         assert_eq!(detect_image_ext(b"\x89PNG\r\n\x1a\n"), Some(".png"));
