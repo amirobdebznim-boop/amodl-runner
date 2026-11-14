@@ -48,7 +48,7 @@ static AJAX_RE_FALLBACK: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 static LOCK_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?:this chapter is locked|chapter is locked|locked chapter|premium chapter|please purchase it to read|unlock to continue reading|sign in to unlock|unlocking grants permanent access|unlock this (?:exciting )?chapter|unlock(?:s)? for \d+ coins?|cost to unlock|fast pass chapter|early access chapter|get coins to unlock|coins to read)").unwrap()
+    Regex::new(r#"(?i)(?:this chapter is locked|chapter is locked|locked chapter|premium chapter|please purchase it to read|unlock to continue reading|sign in to unlock|unlocking grants permanent access|unlock this (?:exciting )?chapter|unlock(?:s)? for \d+ coins?|cost to unlock|fast pass chapter|early access chapter|get coins to unlock|coins to read|(?:\\"|")isRedacted(?:\\"|")\s*:\s*true)"#).unwrap()
 });
 
 static PREM_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -735,15 +735,19 @@ fn is_cloudflare_challenge(html_text: &str) -> bool {
 }
 
 fn resolve_url(base: &str, rel: &str) -> String {
-    if rel.starts_with("http://") || rel.starts_with("https://") {
-        return rel.to_string();
+    let trimmed = rel.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+        return trimmed.to_string();
     }
     if let Ok(base_url) = Url::parse(base) {
-        if let Ok(joined) = base_url.join(rel) {
+        if let Ok(joined) = base_url.join(trimmed) {
             return joined.to_string();
         }
     }
-    rel.to_string()
+    trimmed.to_string()
 }
 
 fn extract_ts_reader_pages(html: &str, chapter_url: &str) -> Result<Vec<String>, AppError> {
@@ -1112,6 +1116,9 @@ async fn extract_ajax_pages(
 
     for it in &items {
         if let (Some(scfg), Some(it_obj)) = (strip_cfg, it.as_object()) {
+            if it_obj.get("isRedacted").and_then(|v| v.as_bool()).unwrap_or(false) {
+                continue;
+            }
             let parts_key = scfg
                 .get("parts")
                 .and_then(|v| v.as_str())
@@ -1135,7 +1142,10 @@ async fn extract_ajax_pages(
                     let strip_urls: Vec<String> = sorted_strips
                         .iter()
                         .filter_map(|s| s.get(strip_field).and_then(|v| v.as_str()))
-                        .map(|u| resolve_url(&base, u.trim()))
+                        .map(|u| u.trim())
+                        .filter(|u| !u.is_empty())
+                        .map(|u| resolve_url(&base, u))
+                        .filter(|u| !u.is_empty() && u != &base && u != &format!("{base}/") && !AD_IMG_RE.is_match(u))
                         .collect();
                     if strip_urls.len() >= 2 {
                         pages.push(PageItem::Strips(strip_urls));
@@ -1146,14 +1156,21 @@ async fn extract_ajax_pages(
         }
 
         let raw_u = if let Some(obj) = it.as_object() {
+            if obj.get("isRedacted").and_then(|v| v.as_bool()).unwrap_or(false) {
+                continue;
+            }
             obj.get(field_key).and_then(|v| v.as_str())
         } else {
             it.as_str()
         };
 
         if let Some(raw_u) = raw_u {
-            let u = resolve_url(&base, raw_u.trim());
-            if u.starts_with("http") && !AD_IMG_RE.is_match(&u) {
+            let trimmed = raw_u.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let u = resolve_url(&base, trimmed);
+            if u.starts_with("http") && u != base && u != format!("{base}/") && !AD_IMG_RE.is_match(&u) {
                 pages.push(PageItem::Single(u));
             }
         }
@@ -1262,6 +1279,16 @@ async fn extract_html_pages(
             "این سورس دارای سیستم ضدربات Cloudflare Turnstile است و در حال حاضر دانلود خودکار آن مسدود می‌باشد.".to_string()
         };
         return Err(AppError::CloudflareBlocked(msg));
+    }
+
+    if html_text.contains(r#""isRedacted":true"#)
+        || html_text.contains(r#"\"isRedacted\":true"#)
+        || html_text.contains(r#""isRedacted": true"#)
+        || html_text.contains(r#"\"isRedacted\": true"#)
+    {
+        return Err(AppError::ChapterLocked(
+            "این چپتر قفل/پولی (نیازمند سکه برای مطالعه) است و هنوز رایگان نشده است.".to_string(),
+        ));
     }
 
 
@@ -2117,13 +2144,13 @@ out_dir = data.get("output_dir", "")
 os.makedirs(out_dir, exist_ok=True)
 
 def detect_ext(content):
-    if len(content) < 8: return ".jpg"
+    if len(content) < 8: return None
     if content.startswith(b"\xff\xd8\xff"): return ".jpg"
     if content.startswith(b"\x89PNG"): return ".png"
     if content.startswith(b"RIFF") and b"WEBP" in content[:16]: return ".webp"
     if content.startswith(b"GIF8"): return ".gif"
     if b"ftypavif" in content[:32] or b"ftypavis" in content[:32]: return ".avif"
-    return ".jpg"
+    return None
 
 async def main():
     sem = asyncio.Semaphore(20)
@@ -2138,6 +2165,8 @@ async def main():
                         r = await s.get(url, headers=headers, timeout=15)
                         if r.status_code == 200 and len(r.content) >= 32:
                             ext = detect_ext(r.content)
+                            if not ext:
+                                return None
                             fn = os.path.join(out_dir, f"{idx:04d}{ext}")
                             with open(fn, "wb") as f:
                                 f.write(r.content)
@@ -2980,6 +3009,23 @@ mod tests {
             assert_eq!(diva_pages.len(), 10);
             assert!(diva_pages[0].contains("p-f3dbd655-8c7d-4528-bb3d-3e0703128056.webp"));
         }
+    }
+
+    #[test]
+    fn test_kayn_locked_chapter_detection() {
+        if let Ok(html) = std::fs::read_to_string("/tmp/kayn_test/impersonate-results/kayn_ch67.html") {
+            assert!(LOCK_RE.is_match(&html));
+            assert!(html.contains(r#""isRedacted":true"#) || html.contains(r#"\"isRedacted\":true"#));
+            let valir_pages = extract_valir_or_rsc_pages(&html, "https://kaynscans.com/series/comic/the-strongest-level-0-completely-unrivaled-with-analysis-skills/chapter/67");
+            assert_eq!(valir_pages.len(), 0);
+        }
+    }
+
+    #[test]
+    fn test_resolve_url_empty() {
+        assert_eq!(resolve_url("https://kaynscans.com", ""), "");
+        assert_eq!(resolve_url("https://kaynscans.com", "   "), "");
+        assert_eq!(resolve_url("https://kaynscans.com", "/image.jpg"), "https://kaynscans.com/image.jpg");
     }
 
     #[tokio::test]
