@@ -728,6 +728,8 @@ fn is_cloudflare_challenge(html_text: &str) -> bool {
         "_cf_translation",
         "cf-browser-verification",
         "challenges.cloudflare.com",
+        "Sorry, you have been blocked",
+        "cf-error-details",
     ];
     CF_SIGNALS.iter().any(|sig| html_text.contains(sig))
 }
@@ -1166,7 +1168,7 @@ from curl_cffi import requests
 url = sys.argv[1]
 try:
     r = requests.get(url, impersonate="chrome120", timeout=20)
-    if r.status_code == 200:
+    if r.status_code == 200 or r.status_code in (403, 503):
         sys.stdout.write(r.text)
 except Exception:
     pass
@@ -1178,9 +1180,7 @@ except Exception:
         .ok()?;
     if out.status.success() && !out.stdout.is_empty() {
         let text = String::from_utf8_lossy(&out.stdout).to_string();
-        if !is_cloudflare_challenge(&text) {
-            return Some(text);
-        }
+        return Some(text);
     }
     None
 }
@@ -1211,6 +1211,11 @@ async fn extract_html_pages(
         if res.status().is_success() {
             chapter_url = res.url().to_string();
             html_text = res.text().await.unwrap_or_default();
+        } else if res.status().as_u16() == 403 || res.status().as_u16() == 503 {
+            let body = res.text().await.unwrap_or_default();
+            if is_cloudflare_challenge(&body) {
+                html_text = body;
+            }
         }
     }
 
@@ -1235,13 +1240,18 @@ async fn extract_html_pages(
     }
 
     if html_text.is_empty() {
-        return Ok(vec![]);
+        return Err(AppError::Other(
+            "دریافت محتوای صفحه با خطا مواجه شد یا سورس در دسترس نیست.".to_string(),
+        ));
     }
 
     if is_cloudflare_challenge(&html_text) {
-        return Err(AppError::CloudflareBlocked(
-            "این سورس دارای سیستم ضدربات Cloudflare Turnstile است و در حال حاضر دانلود خودکار آن مسدود می‌باشد.".to_string(),
-        ));
+        let msg = if html_text.contains("Sorry, you have been blocked") {
+            "آی‌پی سرور توسط فایروال ضدربات (Cloudflare WAF) این سورس مسدود (Block) شده است. لطفاً از سورس‌های دیگر یا اپلیکیشن دسکتاپ استفاده کنید.".to_string()
+        } else {
+            "این سورس دارای سیستم ضدربات Cloudflare Turnstile است و در حال حاضر دانلود خودکار آن مسدود می‌باشد.".to_string()
+        };
+        return Err(AppError::CloudflareBlocked(msg));
     }
 
 
@@ -2863,6 +2873,20 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_cloudflare_waf_block_detection() {
+        let block_html = r#"
+            <!DOCTYPE html><html><head>
+            <title>Attention Required! | Cloudflare</title>
+            </head><body>
+            <div id="cf-error-details">
+            <h1>Sorry, you have been blocked</h1>
+            <p>Why have I been blocked?</p>
+            </div></body></html>
+        "#;
+        assert!(is_cloudflare_challenge(block_html));
+    }
 
     #[test]
     fn test_ts_reader_extraction_and_lock() {
