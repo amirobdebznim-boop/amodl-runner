@@ -23,6 +23,8 @@ TARGETS=(
   "GenzToons Ch41|https://genztoons.org/series/the-absolute-being-s-modern-life/chapter-41"
   "GenzToons Ch1|https://genztoons.org/series/the-absolute-being-s-modern-life/chapter-1"
   "GenzToons Series|https://genztoons.org/series/the-absolute-being-s-modern-life/"
+  "DivaScans Ch13|https://divascans.org/series/comic/supercritical-hell/chapter/13"
+  "DivaScans Home|https://divascans.org"
 )
 
 echo "# 🛡️ نتایج تست نفوذ و عبور از کلودفلر با TLS Impersonation (Chrome 116)" > impersonate_results.md
