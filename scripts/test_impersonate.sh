@@ -95,3 +95,5 @@ grep -i -E '(locked|premium|coin|turnstile|cloudflare)' /tmp/genz_ch41.html | he
 cp /tmp/genz_ch41.html ./genz_ch41.html
 cp /tmp/genz_ch1.html ./genz_ch1.html
 cp /tmp/genz_ch45.html ./genz_ch45.html
+
+curl -sL "https://divascans.org/series/comic/supercritical-hell/chapter/13" -H "User-Agent: Mozilla/5.0" > diva_ch13.html
