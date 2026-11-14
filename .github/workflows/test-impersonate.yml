@@ -21,6 +21,7 @@ jobs:
         with:
           name: impersonate-results
           path: |
+            diva_ch13.html
             impersonate_results.md
             genz_ch41.html
             genz_ch1.html
