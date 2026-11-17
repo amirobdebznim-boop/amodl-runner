@@ -1721,6 +1721,215 @@ async fn extract_asura_pages(client: &Client, chapter_url: &str) -> Result<Vec<P
     Ok(vec![])
 }
 
+fn split_js_top_level_args(s: &str) -> Vec<String> {
+    let mut args = Vec::new();
+    let mut cur = String::new();
+    let mut depth = 0i32;
+    let mut in_str: Option<char> = None;
+    let mut esc = false;
+    for ch in s.chars() {
+        if let Some(q) = in_str {
+            cur.push(ch);
+            if esc {
+                esc = false;
+            } else if ch == '\\' {
+                esc = true;
+            } else if ch == q {
+                in_str = None;
+            }
+        } else {
+            match ch {
+                '"' | '\'' => {
+                    in_str = Some(ch);
+                    cur.push(ch);
+                }
+                '(' | '[' | '{' => {
+                    depth += 1;
+                    cur.push(ch);
+                }
+                ')' | ']' | '}' => {
+                    depth -= 1;
+                    cur.push(ch);
+                }
+                ',' if depth == 0 => {
+                    args.push(cur.trim().to_string());
+                    cur.clear();
+                }
+                _ => cur.push(ch),
+            }
+        }
+    }
+    if !cur.trim().is_empty() {
+        args.push(cur.trim().to_string());
+    }
+    args
+}
+
+fn parse_js_literal(tok: &str) -> Value {
+    let t = tok.trim();
+    if t == "true" {
+        return Value::Bool(true);
+    }
+    if t == "false" {
+        return Value::Bool(false);
+    }
+    if t == "null" || t == "void 0" || t == "undefined" {
+        return Value::Null;
+    }
+    if t.starts_with('"') && t.ends_with('"') {
+        if let Ok(s) = serde_json::from_str::<String>(t) {
+            return Value::String(s);
+        }
+    }
+    if let Ok(n) = t.parse::<i64>() {
+        return Value::Number(n.into());
+    }
+    Value::String(t.to_string())
+}
+
+fn parse_kuaikan_comic_html(html: &str) -> Result<Vec<String>, AppError> {
+    let marker = "window.__NUXT__=(function(";
+    let Some(start) = html.find(marker) else {
+        return Ok(vec![]);
+    };
+    let p_start = start + marker.len();
+    let Some(p_end_rel) = html[p_start..].find("){") else {
+        return Ok(vec![]);
+    };
+    let p_end = p_start + p_end_rel;
+    let params: Vec<&str> = html[p_start..p_end].split(',').map(|s| s.trim()).collect();
+
+    let after_params = &html[p_end + 1..];
+    let script_end = after_params.find("</script>").unwrap_or(after_params.len());
+    let chunk = after_params[..script_end].trim_end();
+
+    let mut depth = 0i32;
+    let mut in_str: Option<char> = None;
+    let mut esc = false;
+    let mut body_end = None;
+    for (idx, ch) in chunk.char_indices() {
+        if let Some(q) = in_str {
+            if esc {
+                esc = false;
+            } else if ch == '\\' {
+                esc = true;
+            } else if ch == q {
+                in_str = None;
+            }
+        } else {
+            match ch {
+                '"' | '\'' => in_str = Some(ch),
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        body_end = Some(idx);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    let Some(body_end) = body_end else {
+        return Ok(vec![]);
+    };
+
+    let body = &chunk[1..body_end];
+    let mut args_str = chunk[body_end + 1..].trim();
+    args_str = args_str.trim_end_matches(';').trim_end();
+    args_str = args_str.strip_suffix(')').unwrap_or(args_str).trim_end();
+    args_str = args_str.strip_suffix(')').unwrap_or(args_str).trim_end();
+    let Some(args_inner) = args_str.strip_prefix('(') else {
+        return Ok(vec![]);
+    };
+
+    let raw_args = split_js_top_level_args(args_inner);
+    let mut env = HashMap::new();
+    for (p, a) in params.iter().zip(raw_args.iter()) {
+        env.insert(*p, parse_js_literal(a));
+    }
+
+    let resolve = |tok: &str| -> Value {
+        let t = tok.trim();
+        env.get(t).cloned().unwrap_or_else(|| parse_js_literal(t))
+    };
+
+    if let Ok(re_lock) = Regex::new(r"comicInfo:\{[^}]*?locked:([^,}]+)") {
+        if let Some(c) = re_lock.captures(body) {
+            if resolve(&c[1]).as_bool() == Some(true) {
+                return Err(AppError::ChapterLocked(
+                    "این چپتر در Kuaikan قفل/پولی (VIP یا نیازمند کوین) است و هنوز رایگان نشده است."
+                        .to_string(),
+                ));
+            }
+        }
+    }
+    if let Ok(re_status) = Regex::new(r"status:([^,}]+)") {
+        if let Some(c) = re_status.captures(body) {
+            if resolve(&c[1]).as_i64() == Some(10103) {
+                return Err(AppError::ChapterLocked(
+                    "این چپتر در Kuaikan قفل/پولی (VIP یا نیازمند کوین) است و هنوز رایگان نشده است."
+                        .to_string(),
+                ));
+            }
+        }
+    }
+
+    let mut urls = Vec::new();
+    if let Some(imgs_start) = body.find("comic_images:[") {
+        let after = &body[imgs_start + "comic_images:[".len()..];
+        if let Some(imgs_end) = after.find(']') {
+            let arr_str = &after[..imgs_end];
+            if let Ok(item_re) = Regex::new(r"\{[^}]*?url:([^,}]+)(?:,[^}]*?url1280:([^,}]+))?[^}]*\}") {
+                for cap in item_re.captures_iter(arr_str) {
+                    let u1280 = cap
+                        .get(2)
+                        .and_then(|m| resolve(m.as_str()).as_str().map(|s| s.to_string()))
+                        .filter(|s| s.starts_with("http"));
+                    let u640 = cap
+                        .get(1)
+                        .and_then(|m| resolve(m.as_str()).as_str().map(|s| s.to_string()))
+                        .filter(|s| s.starts_with("http"));
+                    if let Some(u) = u1280.or(u640) {
+                        urls.push(
+                            u.replace(r"\u002F", "/")
+                                .replace(r"\/", "/")
+                                .replace("&amp;", "&"),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(dedup_strings(urls))
+}
+
+async fn extract_kuaikan_pages(client: &Client, chapter_url: &str) -> Result<Vec<PageItem>, AppError> {
+    let cid_re = Regex::new(r"(?:/web/comic/|/webs/comic-next/|/mobile/comics/)(\d+)").unwrap();
+    let Some(cid) = cid_re.captures(chapter_url).and_then(|c| c.get(1)).map(|m| m.as_str()) else {
+        return Ok(vec![]);
+    };
+    let target = format!("https://www.kuaikanmanhua.com/webs/comic-next/{cid}");
+    let Ok(res) = client
+        .get(&target)
+        .header("User-Agent", USER_AGENT)
+        .header("Referer", "https://www.kuaikanmanhua.com/")
+        .timeout(Duration::from_secs(20))
+        .send()
+        .await
+    else {
+        return Ok(vec![]);
+    };
+    if !res.status().is_success() {
+        return Ok(vec![]);
+    }
+    let html = res.text().await.unwrap_or_default();
+    let urls = parse_kuaikan_comic_html(&html)?;
+    Ok(urls.into_iter().map(PageItem::Single).collect())
+}
+
 async fn get_chapter_page_urls(
     client: &Client,
     chapter_url: &str,
@@ -1757,6 +1966,12 @@ async fn get_chapter_page_urls(
     }
     if host.contains("comic.naver.com") {
         let pages = extract_naver_pages(client, chapter_url).await?;
+        if !pages.is_empty() {
+            return Ok(pages);
+        }
+    }
+    if host.contains("kuaikanmanhua.com") || host.contains("kkmh.com") {
+        let pages = extract_kuaikan_pages(client, chapter_url).await?;
         if !pages.is_empty() {
             return Ok(pages);
         }
@@ -2959,6 +3174,37 @@ mod tests {
         assert_eq!(pages.len(), 2);
         assert_eq!(pages[0], "https://lagoonscans.com/wp-content/uploads/2026/11/01-266.webp");
         assert_eq!(pages[1], "https://lagoonscans.com/wp-content/uploads/2026/11/02-266.webp");
+    }
+
+    #[test]
+    fn test_kuaikan_comic_extraction_and_lock() {
+        let free_html = r#"<script>window.__NUXT__=(function(a,b,c,d){return {data:[{status:200,comicInfo:{locked:a},res:{data:{comic_info:{comic_images:[{url:b,url1280:c},{url:d}]}}}}]}}(false,"https:\u002F\u002Ftn1.kkmh.com\u002Fp1-w640.jpg","https:\u002F\u002Ftn1.kkmh.com\u002Fp1-w1280.jpg","https:\u002F\u002Ftn1.kkmh.com\u002Fp2-w640.jpg"));</script>"#;
+        let pages = parse_kuaikan_comic_html(free_html).unwrap();
+        assert_eq!(
+            pages,
+            vec![
+                "https://tn1.kkmh.com/p1-w1280.jpg",
+                "https://tn1.kkmh.com/p2-w640.jpg"
+            ]
+        );
+
+        let locked_html = r#"<script>window.__NUXT__=(function(a,b){return {data:[{status:b,comicInfo:{locked:a}}]}}(true,10103));</script>"#;
+        assert!(matches!(
+            parse_kuaikan_comic_html(locked_html),
+            Err(AppError::ChapterLocked(_))
+        ));
+
+        if let Ok(real_free) = std::fs::read_to_string("/tmp/kuaikan_comic.html") {
+            let real_pages = parse_kuaikan_comic_html(&real_free).unwrap();
+            assert_eq!(real_pages.len(), 22);
+            assert!(real_pages[0].contains("w1280"));
+        }
+        if let Ok(real_locked) = std::fs::read_to_string("/tmp/kuaikan_locked.html") {
+            assert!(matches!(
+                parse_kuaikan_comic_html(&real_locked),
+                Err(AppError::ChapterLocked(_))
+            ));
+        }
     }
 
     #[test]
