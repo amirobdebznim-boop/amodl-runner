@@ -2256,6 +2256,11 @@ async fn fetch_image_bytes(client: &Client, url: &str, referer: &str) -> Option<
         referer
     };
     for attempt in 0..3 {
+        let req_timeout = if attempt == 0 {
+            Duration::from_secs(6)
+        } else {
+            Duration::from_secs(15)
+        };
         if let Ok(res) = client
             .get(&current_url)
             .header("User-Agent", USER_AGENT)
@@ -2264,7 +2269,7 @@ async fn fetch_image_bytes(client: &Client, url: &str, referer: &str) -> Option<
                 "Accept",
                 "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
             )
-            .timeout(Duration::from_secs(12))
+            .timeout(req_timeout)
             .send()
             .await
         {
