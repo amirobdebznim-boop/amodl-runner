@@ -1185,26 +1185,33 @@ async fn extract_ajax_pages(
 
 async fn fetch_html_via_cffi(url: &str) -> Option<String> {
     let py_code = r#"
-import sys
+import sys, site, importlib
 try:
     import curl_cffi
 except ImportError:
     import subprocess
     subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "--no-cache-dir", "curl_cffi"], check=True)
+    u = site.getusersitepackages()
+    if u not in sys.path:
+        sys.path.insert(0, u)
+    importlib.invalidate_caches()
 from curl_cffi import requests
 url = sys.argv[1]
 try:
     r = requests.get(url, impersonate="chrome120", timeout=20)
     if r.status_code == 200 or r.status_code in (403, 503):
         sys.stdout.write(r.text)
-except Exception:
-    pass
+except Exception as e:
+    sys.stderr.write(f"[AmoDL] cffi fetch error: {e}\n")
 "#;
     let out = Command::new("python3")
         .args(["-c", py_code, url])
         .output()
         .await
         .ok()?;
+    if !out.stderr.is_empty() {
+        eprintln!("{}", String::from_utf8_lossy(&out.stderr).trim());
+    }
     if out.status.success() && !out.stdout.is_empty() {
         let text = String::from_utf8_lossy(&out.stdout).to_string();
         return Some(text);
@@ -2347,13 +2354,17 @@ async fn download_all_images_cffi(
     });
 
     let py_code = r#"
-import sys, json, os, asyncio
+import sys, json, os, asyncio, site, importlib
 
 try:
     import curl_cffi
 except ImportError:
     import subprocess
     subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "--no-cache-dir", "curl_cffi"], check=True)
+    u = site.getusersitepackages()
+    if u not in sys.path:
+        sys.path.insert(0, u)
+    importlib.invalidate_caches()
 
 from curl_cffi.requests import AsyncSession
 
