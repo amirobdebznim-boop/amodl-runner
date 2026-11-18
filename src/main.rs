@@ -2461,8 +2461,7 @@ async fn download_all_images(
 ) -> Vec<PathBuf> {
     let page_urls_backup = page_urls.clone();
     let total = page_urls.len();
-    let concurrency = if total >= 60 { 48 } else { 32 };
-    let sem = Arc::new(Semaphore::new(concurrency));
+    let sem = Arc::new(Semaphore::new(32));
     let completed = Arc::new(Mutex::new(0usize));
     let mut handles = Vec::with_capacity(total);
 
@@ -3071,7 +3070,7 @@ async fn main() {
     ));
 
     let client = Client::builder()
-        .pool_max_idle_per_host(64)
+        .pool_max_idle_per_host(40)
         .pool_idle_timeout(Duration::from_secs(30))
         .connect_timeout(Duration::from_secs(10))
         .tcp_nodelay(true)
