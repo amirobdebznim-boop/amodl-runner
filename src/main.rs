@@ -2368,7 +2368,7 @@ def detect_ext(content):
     return None
 
 async def main():
-    sem = asyncio.Semaphore(20)
+    sem = asyncio.Semaphore(32)
     async with AsyncSession(impersonate="chrome120") as s:
         async def fetch(idx, url):
             async with sem:
@@ -2460,8 +2460,9 @@ async fn download_all_images(
     client: &Client,
 ) -> Vec<PathBuf> {
     let page_urls_backup = page_urls.clone();
-    let sem = Arc::new(Semaphore::new(25));
     let total = page_urls.len();
+    let concurrency = if total >= 60 { 48 } else { 32 };
+    let sem = Arc::new(Semaphore::new(concurrency));
     let completed = Arc::new(Mutex::new(0usize));
     let mut handles = Vec::with_capacity(total);
 
@@ -2538,7 +2539,8 @@ fn create_archive(image_files: &[PathBuf], output_path: &Path) -> std::io::Resul
     sorted.sort_by_key(|p| p.file_name().map(|n| n.to_os_string()));
 
     let file = File::create(output_path)?;
-    let mut zip = ZipWriter::new(file);
+    let writer = std::io::BufWriter::with_capacity(256 * 1024, file);
+    let mut zip = ZipWriter::new(writer);
     let options = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
 
     for f in sorted {
@@ -2658,8 +2660,11 @@ async fn deliver_to_telegram(
                 .and_then(|n| n.to_str())
                 .unwrap_or("chapter.zip")
                 .to_string();
-            let stream =
-                tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new());
+            let stream = tokio_util::codec::FramedRead::with_capacity(
+                file,
+                tokio_util::codec::BytesCodec::new(),
+                256 * 1024,
+            );
             let body = reqwest::Body::wrap_stream(stream);
             if let Ok(part) = multipart::Part::stream_with_length(body, file_size)
                 .file_name(file_name)
@@ -3066,8 +3071,10 @@ async fn main() {
     ));
 
     let client = Client::builder()
-        .pool_max_idle_per_host(35)
+        .pool_max_idle_per_host(64)
         .pool_idle_timeout(Duration::from_secs(30))
+        .connect_timeout(Duration::from_secs(10))
+        .tcp_nodelay(true)
         .timeout(Duration::from_secs(30))
         .build()
         .expect("Failed to build HTTP client");
