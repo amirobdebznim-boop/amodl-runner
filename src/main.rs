@@ -67,6 +67,18 @@ static SANITIZE_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"[\\/*?:"<>|\r\n\t]+"#).unwrap()
 });
 
+static DATE_TIME_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\s*[-–—:]\s*(?:\d+\s+(?:hours?|hrs?|mins?|minutes?|days?|weeks?|months?|years?|secs?|seconds?)\s+ago|just\s+now|yesterday|last\s+week|last\s+month|[a-z]+\s+\d{1,2}(?:,?\s*\d{4})?|\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}).*").unwrap()
+});
+
+static CH_EXTRACT_RE1: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?:chapter|episode|ch)[-_/]?(\d+(?:\.\d+)?)").unwrap()
+});
+
+static CH_EXTRACT_RE2: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?:[?&](?:chapter|ch|episode|ep|no)=|/c|/|_)(\d+(?:\.\d+)?)(?:\.html|/|$)").unwrap()
+});
+
 static DUP_CH_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)/chapter[-_]?(\d+(?:\.\d+)?)/chapter[-_]?(\d+(?:\.\d+)?)/?$").unwrap()
 });
@@ -576,33 +588,74 @@ async fn extract_hipmh_pages(chapter_url: &str, scripts_dir: &Path) -> Vec<PageI
     let decoder_file = scripts_dir.join("hipmh_decoder.js");
     let js_code = r#"
     const fs = require('fs');
-    function deriveApiHid(url) {
+    async function resolveApiHid(url, userAgent) {
       let slug = null;
       try {
         const u = new URL(url);
         if (u.searchParams.get('hid')) {
           slug = u.searchParams.get('hid');
         } else if (url.includes('/chapter/')) {
-          slug = url.split('/chapter/')[1]?.split(/[?#]/)[0];
+          const part = url.split('/chapter/')[1]?.split(/[?#]/)[0];
+          if (part && !/^\d+$/.test(part)) slug = part;
         }
       } catch (e) {
         if (url.includes('/chapter/')) {
-          slug = url.split('/chapter/')[1]?.split(/[?#]/)[0];
+          const part = url.split('/chapter/')[1]?.split(/[?#]/)[0];
+          if (part && !/^\d+$/.test(part)) slug = part;
         }
       }
-      if (!slug) return null;
-      slug = slug.replace(/\/+$/, '');
-      if (!slug.includes('-')) return slug;
-      const parts = slug.split('-');
-      try {
-        const p1 = Buffer.from(parts[0], 'base64').toString();
-        const cMatch = p1.match(/c:(\d+)/);
-        if (!cMatch) return slug;
-        const cB64 = Buffer.from('c:' + cMatch[1]).toString('base64').replace(/=+$/, '');
-        return cB64 + '-' + parts.slice(1).join('-');
-      } catch (e) {
-        return slug;
+      if (slug) {
+        slug = slug.replace(/\/+$/, '');
+        if (!slug.includes('-')) return slug;
+        const parts = slug.split('-');
+        try {
+          const p1 = Buffer.from(parts[0], 'base64').toString();
+          const cMatch = p1.match(/c:(\d+)/);
+          if (!cMatch) return slug;
+          const cB64 = Buffer.from('c:' + cMatch[1]).toString('base64').replace(/=+$/, '');
+          return cB64 + '-' + parts.slice(1).join('-');
+        } catch (e) {
+          return slug;
+        }
       }
+
+      // Fallback for works/.../chapter-NUM or works/.../chapter/NUM
+      const chMatch = url.match(/\/chapter[-/](\d+(?:\.\d+)?)/i);
+      const worksMatch = url.match(/\/works\/([A-Za-z0-9+/=]+)/);
+      if (worksMatch && chMatch) {
+        try {
+          const rawSlug = Buffer.from(worksMatch[1], 'base64').toString('utf8');
+          const midMatch = rawSlug.match(/m:(\d+)/);
+          if (midMatch) {
+            const mid = midMatch[1];
+            const chNum = parseFloat(chMatch[1]);
+            const res = await fetch(`https://hipapi1.s3file.top/v1/manga/chapters?mid=${mid}&page=1&per_page=50&order=desc`, {
+              headers: { 'User-Agent': userAgent }
+            });
+            if (res.ok) {
+              const d = await res.json();
+              const items = d?.data?.items || [];
+              let found = items.find(it => parseFloat(it.chapter_number) === chNum);
+              if (!found && d?.data?.total_pages > 1) {
+                for (let p = 2; p <= Math.min(d.data.total_pages, 20); p++) {
+                  const pRes = await fetch(`https://hipapi1.s3file.top/v1/manga/chapters?mid=${mid}&page=${p}&per_page=50&order=desc`, {
+                    headers: { 'User-Agent': userAgent }
+                  });
+                  if (pRes.ok) {
+                    const pData = await pRes.json();
+                    found = (pData?.data?.items || []).find(it => parseFloat(it.chapter_number) === chNum);
+                    if (found) break;
+                  }
+                }
+              }
+              if (found && found.hid) {
+                return await resolveApiHid('https://reader.hipmh.top/chapter/' + found.hid, userAgent);
+              }
+            }
+          }
+        } catch (e) {}
+      }
+      return null;
     }
 
     const D = (40503 << 16 | 31153) >>> 0, R = (34283 << 16 | 51819) >>> 0;
@@ -634,7 +687,7 @@ async fn extract_hipmh_pages(chapter_url: &str, scripts_dir: &Path) -> Vec<PageI
       const userAgent = process.env.USER_AGENT;
       const decoderPath = process.env.DECODER_PATH;
       const imgBase = 'https://hip-cf-1.s3imgs.top';
-      const apiHid = deriveApiHid(chapterUrl);
+      const apiHid = await resolveApiHid(chapterUrl, userAgent);
       if (!apiHid) {
         console.error('Failed to derive apiHid from URL:', chapterUrl);
         return [];
@@ -677,7 +730,7 @@ async fn extract_hipmh_pages(chapter_url: &str, scripts_dir: &Path) -> Vec<PageI
         return [];
       }
       const apiUrl = 'https://hipapi1.s3file.top/v2/chapter?hid=' + encodeURIComponent(apiHid);
-      const data = await fetch(apiUrl, { headers: { 'User-Agent': userAgent, 'Referer': chapterUrl } }).then(r => r.json());
+      const data = await fetch(apiUrl, { headers: { 'User-Agent': userAgent, 'Referer': 'https://reader.hipmh.top/' } }).then(r => r.json());
       if (!data || !data.data || !data.data.images) {
         console.error('HipMH API did not return images:', JSON.stringify(data));
         return [];
@@ -2975,16 +3028,34 @@ async fn run_pipeline(
         .chars()
         .take(80)
         .collect();
-    let clean_label: String = SANITIZE_RE
-        .replace_all(&args.label, " ")
+    let clean_title = if clean_title.is_empty() { "Manga".to_string() } else { clean_title };
+
+    let stripped_label = DATE_TIME_RE.replace(&args.label, "").to_string();
+    let mut clean_label: String = SANITIZE_RE
+        .replace_all(&stripped_label, " ")
         .trim()
         .chars()
         .take(40)
         .collect();
-    let clean_title = if clean_title.is_empty() { "Manga" } else { &clean_title };
-    let clean_label = if clean_label.is_empty() { "Chapter" } else { &clean_label };
 
-    let archive_name = format!("{clean_title} - {clean_label}.{}", args.format);
+    // Fallback: If label doesn't contain any digit, extract chapter number from chapter_url
+    if !clean_label.chars().any(|c| c.is_ascii_digit()) {
+        if let Some(caps) = CH_EXTRACT_RE1.captures(&args.chapter_url) {
+            if let Some(m) = caps.get(1) {
+                clean_label = format!("Ch. {}", m.as_str());
+            }
+        } else if let Some(caps) = CH_EXTRACT_RE2.captures(&args.chapter_url) {
+            if let Some(m) = caps.get(1) {
+                clean_label = format!("Ch. {}", m.as_str());
+            }
+        }
+    }
+    if clean_label.is_empty() {
+        clean_label = "Chapter".to_string();
+    }
+
+    // Format: Chapter number first, then manga title (e.g. "Ch. 10 - Solo Leveling.zip")
+    let archive_name = format!("{clean_label} - {clean_title}.{}", args.format);
     let archive_path = tmp_dir.path().join(archive_name);
 
     let final_file_size = match create_archive(&images, &archive_path) {
@@ -3502,5 +3573,61 @@ mod tests {
 
         let res3 = get_chapter_page_urls(&client, "https://mgread.io/manga/please-give-me-the-pacifier/chapter-146/", repo_root).await;
         println!("Mgread: {:?}", res3.as_ref().map(|p| p.len()));
+    }
+
+    #[test]
+    fn test_archive_naming_format() {
+        fn format_name(title: &str, label: &str, url: &str, format: &str) -> String {
+            let clean_title: String = SANITIZE_RE
+                .replace_all(title, " ")
+                .trim()
+                .chars()
+                .take(80)
+                .collect();
+            let clean_title = if clean_title.is_empty() { "Manga".to_string() } else { clean_title };
+
+            let stripped_label = DATE_TIME_RE.replace(label, "").to_string();
+            let mut clean_label: String = SANITIZE_RE
+                .replace_all(&stripped_label, " ")
+                .trim()
+                .chars()
+                .take(40)
+                .collect();
+
+            if !clean_label.chars().any(|c| c.is_ascii_digit()) {
+                if let Some(caps) = CH_EXTRACT_RE1.captures(url) {
+                    if let Some(m) = caps.get(1) {
+                        clean_label = format!("Ch. {}", m.as_str());
+                    }
+                } else if let Some(caps) = CH_EXTRACT_RE2.captures(url) {
+                    if let Some(m) = caps.get(1) {
+                        clean_label = format!("Ch. {}", m.as_str());
+                    }
+                }
+            }
+            if clean_label.is_empty() {
+                clean_label = "Chapter".to_string();
+            }
+
+            format!("{clean_label} - {clean_title}.{format}")
+        }
+
+        // Standard case
+        assert_eq!(
+            format_name("Solo Leveling", "Chapter 10", "https://example.com/ch-10", "zip"),
+            "Chapter 10 - Solo Leveling.zip"
+        );
+
+        // Stripping relative date/time
+        assert_eq!(
+            format_name("Solo Leveling", "Chapter 10 - 2 hours ago", "https://example.com/ch-10", "zip"),
+            "Chapter 10 - Solo Leveling.zip"
+        );
+
+        // Fallback when label is just "Chapter"
+        assert_eq!(
+            format_name("Solo Leveling", "Chapter", "https://example.com/series/comic/solo-leveling/chapter/45", "cbz"),
+            "Ch. 45 - Solo Leveling.cbz"
+        );
     }
 }
