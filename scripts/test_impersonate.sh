@@ -131,16 +131,21 @@ echo "--- Toonz Ch1 Images ---"
 grep -i -o '<img[^>]*>' ./toonz_ch1.html | head -n 30 || true
 
 echo "=== Python curl_cffi check ==="
+python3 -m pip install --quiet curl_cffi
 python3 -c "
 import sys
-try:
-    from curl_cffi import requests
-    for u in ['https://ezmanga.org/series/roxana-the-way-to-protect-the-female-leads-older-brother', 'https://toonz.to/manhwa/peerless-madam-healer']:
+from curl_cffi import requests
+for u in ['https://ezmanga.org/series/roxana-the-way-to-protect-the-female-leads-older-brother', 'https://toonz.to/manhwa/peerless-madam-healer']:
+    for imp in ['chrome120', 'chrome124', 'safari17_0']:
         try:
-            r = requests.get(u, impersonate='chrome120', timeout=15)
-            print(f'cffi: {u} -> {r.status_code}, len={len(r.text)}')
+            r = requests.get(u, impersonate=imp, timeout=15)
+            is_cf = 'Just a moment' in r.text or 'Attention Required' in r.text
+            t = r.text[r.text.find('<title>'):r.text.find('</title>')+8] if '<title>' in r.text else 'no-title'
+            print(f'cffi [{imp}] {u} -> {r.status_code}, cf={is_cf}, title={t}, len={len(r.text)}')
+            if not is_cf and r.status_code == 200:
+                fn = 'ezmanga_cffi.html' if 'ezmanga' in u else 'toonz_cffi.html'
+                with open(fn, 'w') as f:
+                    f.write(r.text)
         except Exception as e:
-            print(f'cffi err {u}: {e}')
-except Exception as ex:
-    print('cffi not installed:', ex)
+            print(f'cffi err {imp} {u}: {e}')
 "
