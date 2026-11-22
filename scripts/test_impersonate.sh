@@ -25,6 +25,10 @@ TARGETS=(
   "GenzToons Series|https://genztoons.org/series/the-absolute-being-s-modern-life/"
   "DivaScans Ch13|https://divascans.org/series/comic/supercritical-hell/chapter/13"
   "DivaScans Home|https://divascans.org"
+  "EZManga Series|https://ezmanga.org/series/roxana-the-way-to-protect-the-female-leads-older-brother"
+  "EZManga Chapter|https://ezmanga.org/series/roxana-the-way-to-protect-the-female-leads-older-brother/chapter-1"
+  "Toonz Series|https://toonz.to/manhwa/peerless-madam-healer"
+  "Toonz Chapter|https://toonz.to/manhwa/peerless-madam-healer/chapter-1"
 )
 
 echo "# 🛡️ نتایج تست نفوذ و عبور از کلودفلر با TLS Impersonation (Chrome 116)" > impersonate_results.md
@@ -99,3 +103,44 @@ cp /tmp/genz_ch45.html ./genz_ch45.html
 curl -sL "https://divascans.org/series/comic/supercritical-hell/chapter/13" -H "User-Agent: Mozilla/5.0" > diva_ch13.html
 
 $IMP_CHROME -sL "https://kaynscans.com/series/comic/the-strongest-level-0-completely-unrivaled-with-analysis-skills/chapter/67" > kayn_ch67.html
+
+echo "=== Detailed Inspection for EZManga ==="
+$IMP_CHROME -s -L -o ./ezmanga_series.html "https://ezmanga.org/series/roxana-the-way-to-protect-the-female-leads-older-brother"
+echo "EZManga Series bytes: $(wc -c < ./ezmanga_series.html)"
+grep -i -o '<title[^>]*>[^<]*</title>' ./ezmanga_series.html || true
+echo "--- EZManga Series Chapter Links ---"
+grep -i -o '<a[^>]*href=[^>]*>' ./ezmanga_series.html | grep -i 'chapter' | head -n 30 || true
+
+$IMP_CHROME -s -L -o ./ezmanga_ch1.html "https://ezmanga.org/series/roxana-the-way-to-protect-the-female-leads-older-brother/chapter-1"
+echo "EZManga Ch1 bytes: $(wc -c < ./ezmanga_ch1.html)"
+grep -i -o '<title[^>]*>[^<]*</title>' ./ezmanga_ch1.html || true
+echo "--- EZManga Ch1 Images ---"
+grep -i -o '<img[^>]*>' ./ezmanga_ch1.html | head -n 30 || true
+
+echo "=== Detailed Inspection for Toonz ==="
+$IMP_CHROME -s -L -o ./toonz_series.html "https://toonz.to/manhwa/peerless-madam-healer"
+echo "Toonz Series bytes: $(wc -c < ./toonz_series.html)"
+grep -i -o '<title[^>]*>[^<]*</title>' ./toonz_series.html || true
+echo "--- Toonz Series Chapter Links ---"
+grep -i -o '<a[^>]*href=[^>]*>' ./toonz_series.html | grep -i -E '(chapter|read|manhwa)' | head -n 30 || true
+
+$IMP_CHROME -s -L -o ./toonz_ch1.html "https://toonz.to/manhwa/peerless-madam-healer/chapter-1"
+echo "Toonz Ch1 bytes: $(wc -c < ./toonz_ch1.html)"
+grep -i -o '<title[^>]*>[^<]*</title>' ./toonz_ch1.html || true
+echo "--- Toonz Ch1 Images ---"
+grep -i -o '<img[^>]*>' ./toonz_ch1.html | head -n 30 || true
+
+echo "=== Python curl_cffi check ==="
+python3 -c "
+import sys
+try:
+    from curl_cffi import requests
+    for u in ['https://ezmanga.org/series/roxana-the-way-to-protect-the-female-leads-older-brother', 'https://toonz.to/manhwa/peerless-madam-healer']:
+        try:
+            r = requests.get(u, impersonate='chrome120', timeout=15)
+            print(f'cffi: {u} -> {r.status_code}, len={len(r.text)}')
+        except Exception as e:
+            print(f'cffi err {u}: {e}')
+except Exception as ex:
+    print('cffi not installed:', ex)
+"

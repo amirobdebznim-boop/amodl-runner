@@ -21,9 +21,5 @@ jobs:
         with:
           name: impersonate-results
           path: |
-            kayn_ch67.html
-            diva_ch13.html
+            *.html
             impersonate_results.md
-            genz_ch41.html
-            genz_ch1.html
-            genz_ch45.html
