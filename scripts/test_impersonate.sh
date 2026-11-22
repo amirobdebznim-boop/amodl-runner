@@ -121,14 +121,19 @@ echo "=== Detailed Inspection for Toonz ==="
 $IMP_CHROME -s -L -o ./toonz_series.html "https://toonz.to/manhwa/peerless-madam-healer"
 echo "Toonz Series bytes: $(wc -c < ./toonz_series.html)"
 grep -i -o '<title[^>]*>[^<]*</title>' ./toonz_series.html || true
-echo "--- Toonz Series Chapter Links ---"
-grep -i -o '<a[^>]*href=[^>]*>' ./toonz_series.html | grep -i -E '(chapter|read|manhwa)' | head -n 30 || true
 
-$IMP_CHROME -s -L -o ./toonz_ch1.html "https://toonz.to/manhwa/peerless-madam-healer/chapter-1"
-echo "Toonz Ch1 bytes: $(wc -c < ./toonz_ch1.html)"
-grep -i -o '<title[^>]*>[^<]*</title>' ./toonz_ch1.html || true
-echo "--- Toonz Ch1 Images ---"
-grep -i -o '<img[^>]*>' ./toonz_ch1.html | head -n 30 || true
+echo "--- Testing Toonz API endpoints and sister domains ---"
+$IMP_CHROME -s -L -o ./toonz_api_genres.json "https://toonz.to/api/genres"
+echo "Toonz API genres bytes: $(wc -c < ./toonz_api_genres.json)"
+head -c 200 ./toonz_api_genres.json; echo ""
+
+$IMP_CHROME -s -L -o ./toonx_test.html "https://toonx.to"
+echo "Toonx bytes: $(wc -c < ./toonx_test.html)"
+grep -i -o '<title[^>]*>[^<]*</title>' ./toonx_test.html || true
+
+$IMP_CHROME -s -L -o ./lewdmanhwa_test.html "https://lewdmanhwa.com"
+echo "LewdManhwa bytes: $(wc -c < ./lewdmanhwa_test.html)"
+grep -i -o '<title[^>]*>[^<]*</title>' ./lewdmanhwa_test.html || true
 
 echo "=== Python curl_cffi check ==="
 python3 -m pip install --quiet curl_cffi
