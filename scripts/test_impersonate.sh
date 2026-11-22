@@ -127,13 +127,24 @@ $IMP_CHROME -s -L -o ./toonz_api_genres.json "https://toonz.to/api/genres"
 echo "Toonz API genres bytes: $(wc -c < ./toonz_api_genres.json)"
 head -c 200 ./toonz_api_genres.json; echo ""
 
-$IMP_CHROME -s -L -o ./toonx_test.html "https://toonx.to"
-echo "Toonx bytes: $(wc -c < ./toonx_test.html)"
-grep -i -o '<title[^>]*>[^<]*</title>' ./toonx_test.html || true
+$IMP_CHROME -s -L -H "rsc: 1" -o ./toonz_rsc.txt "https://toonz.to/manhwa/peerless-madam-healer"
+echo "Toonz with RSC header bytes: $(wc -c < ./toonz_rsc.txt)"
+head -c 300 ./toonz_rsc.txt; echo ""
 
-$IMP_CHROME -s -L -o ./lewdmanhwa_test.html "https://lewdmanhwa.com"
-echo "LewdManhwa bytes: $(wc -c < ./lewdmanhwa_test.html)"
-grep -i -o '<title[^>]*>[^<]*</title>' ./lewdmanhwa_test.html || true
+$IMP_CHROME -s -L -o ./toonz_comics.html "https://toonz.to/comics"
+echo "Toonz /comics bytes: $(wc -c < ./toonz_comics.html)"
+grep -i -o '<title[^>]*>[^<]*</title>' ./toonz_comics.html || true
+
+$IMP_CHROME -s -L -o ./toonz_search.html "https://toonz.to/search?q=peerless"
+echo "Toonz /search?q=peerless bytes: $(wc -c < ./toonz_search.html)"
+grep -i -o '<title[^>]*>[^<]*</title>' ./toonz_search.html || true
+
+$IMP_CHROME -s -L -H "rsc: 1" -o ./toonz_search_rsc.txt "https://toonz.to/search?q=peerless"
+echo "Toonz /search with RSC bytes: $(wc -c < ./toonz_search_rsc.txt)"
+head -c 300 ./toonz_search_rsc.txt; echo ""
+
+echo "=== Test EZManga Real Download via amodl-runner ==="
+cargo test --test '*' || true
 
 echo "=== Python curl_cffi check ==="
 python3 -m pip install --quiet curl_cffi
