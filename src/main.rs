@@ -2148,7 +2148,7 @@ impl TelegramProgress {
 
         let bar_str = Self::bar(percent);
         let text = format!(
-            "⏳ <b>در حال پردازش دانلود:</b>\n\n📖 <b>{}</b>\n🔖 <b>{}</b>\n📦 فرمت: <b>{}</b>\n\n{stage_text}\n<code>[{bar_str}]</code> <b>{percent}%</b>",
+            "<tg-emoji emoji-id=\"5296482716567495148\">⌛</tg-emoji> <b>در حال پردازش دانلود:</b>\n\n<tg-emoji emoji-id=\"5237868881267153432\">🔖</tg-emoji> <b>{}</b>\n<tg-emoji emoji-id=\"5303040337059543238\">🔥</tg-emoji> <b>{}</b>\n<tg-emoji emoji-id=\"5373342633798167891\">💾</tg-emoji> <b>فرمت:</b> <code>{}</code>\n\n{stage_text}\n<code>[{bar_str}]</code> <b>{percent}%</b>",
             html_escape(&self.title),
             html_escape(&self.label),
             self.fmt
@@ -2174,12 +2174,14 @@ impl TelegramProgress {
         let mut keyboard = Vec::new();
         if self.job_id != 0 {
             keyboard.push(vec![json!({
-                "text": "⚠️ گزارش خطا به ادمین",
+                "text": "گزارش خطا به ادمین",
+                "icon_custom_emoji_id": "5258382581375723416",
                 "callback_data": format!("rep_err:{}", self.job_id)
             })]);
         }
         keyboard.push(vec![json!({
-            "text": "🏠 بازگشت به منوی اصلی",
+            "text": "منوی اصلی",
+            "icon_custom_emoji_id": "5305757775752620395",
             "callback_data": "p:home"
         })]);
 
@@ -2707,17 +2709,19 @@ async fn deliver_to_telegram(
             .update(client, "🚀 در حال ارسال فایل به تلگرام...", 95, true)
             .await;
         let caption = format!(
-            "🎉 <b>فایل آماده شد!</b>\n\n📖 <b>{title_esc}</b>\n🔖 <b>{label_esc}</b>\n📦 فرمت: <b>{fmt_upper}</b> ({size_mb:.1} MB)\n\n✨ <i>آماده مطالعه در نرم‌افزارهای کمیک‌خوان و گالری.</i>"
+            "<tg-emoji emoji-id=\"5235695112419303615\">🎁</tg-emoji> <b>فایل آماده شد!</b>\n\n<tg-emoji emoji-id=\"5237868881267153432\">🔖</tg-emoji> <b>{title_esc}</b>\n<tg-emoji emoji-id=\"5303040337059543238\">🔥</tg-emoji> <b>{label_esc}</b>\n<tg-emoji emoji-id=\"5373342633798167891\">💾</tg-emoji> <b>فرمت:</b> <code>{fmt_upper}</code> ({size_mb:.1} MB)\n\n<tg-emoji emoji-id=\"5460980668378931880\">⭐</tg-emoji> <i>آماده مطالعه در نرم‌افزارهای کمیک‌خوان و گالری.</i>"
         );
         let mut keyboard = Vec::new();
         if progress.job_id != 0 {
             keyboard.push(vec![json!({
-                "text": "⚠️ گزارش مشکل در فایل",
+                "text": "گزارش مشکل در فایل",
+                "icon_custom_emoji_id": "5258382581375723416",
                 "callback_data": format!("rep_err:{}", progress.job_id)
             })]);
         }
         keyboard.push(vec![json!({
-            "text": "🏠 بازگشت به منوی اصلی",
+            "text": "منوی اصلی",
+            "icon_custom_emoji_id": "5305757775752620395",
             "callback_data": "p:home"
         })]);
         let reply_markup = json!({ "inline_keyboard": keyboard }).to_string();
@@ -2784,21 +2788,24 @@ async fn deliver_to_telegram(
     };
 
     let msg_text = format!(
-        "🎉 <b>فایل آماده شد!</b>\n\n📖 <b>{title_esc}</b>\n🔖 <b>{label_esc}</b>\n📦 فرمت: <b>{fmt_upper}</b> ({size_mb:.1} MB)\n\nℹ️ {reason_text}، لینک دانلود مستقیم موقت برای شما ایجاد شد:\n\n🔗 <a href=\"{link_url}\"><b>دانلود مستقیم فایل {fmt_upper} (کلیک کنید)</b></a>\n\n⏳ <b>اعتبار لینک:</b> ۱۲ ساعت (پس از پایان مهلت به صورت خودکار حذف می‌شود)."
+        "<tg-emoji emoji-id=\"5235695112419303615\">🎁</tg-emoji> <b>فایل آماده شد!</b>\n\n<tg-emoji emoji-id=\"5237868881267153432\">🔖</tg-emoji> <b>{title_esc}</b>\n<tg-emoji emoji-id=\"5303040337059543238\">🔥</tg-emoji> <b>{label_esc}</b>\n<tg-emoji emoji-id=\"5373342633798167891\">💾</tg-emoji> <b>فرمت:</b> <code>{fmt_upper}</code> ({size_mb:.1} MB)\n\n<tg-emoji emoji-id=\"5258382581375723416\">❗️</tg-emoji> {reason_text}، لینک دانلود مستقیم موقت برای شما ایجاد شد:\n\n🔗 <a href=\"{link_url}\"><b>دانلود مستقیم فایل {fmt_upper} (کلیک کنید)</b></a>\n\n<tg-emoji emoji-id=\"5296482716567495148\">⌛</tg-emoji> <b>اعتبار لینک:</b> ۱۲ ساعت (پس از پایان مهلت به صورت خودکار حذف می‌شود)."
     );
 
     let mut rows = vec![vec![json!({
-        "text": format!("📥 دانلود مستقیم ({fmt_upper} - {size_mb:.1}MB)"),
+        "text": format!("دانلود مستقیم ({fmt_upper} - {size_mb:.1}MB)"),
+        "icon_custom_emoji_id": "5373342633798167891",
         "url": link_url
     })]];
     if progress.job_id != 0 {
         rows.push(vec![json!({
-            "text": "⚠️ گزارش مشکل در فایل",
+            "text": "گزارش مشکل در فایل",
+            "icon_custom_emoji_id": "5258382581375723416",
             "callback_data": format!("rep_err:{}", progress.job_id)
         })]);
     }
     rows.push(vec![json!({
-        "text": "🏠 بازگشت به منوی اصلی",
+        "text": "منوی اصلی",
+        "icon_custom_emoji_id": "5305757775752620395",
         "callback_data": "p:home"
     })]);
     let keyboard = json!({ "inline_keyboard": rows });
@@ -2900,7 +2907,7 @@ async fn run_pipeline(
                 .send_error(
                     client,
                     &format!(
-                        "🔒 <b>این چپتر قفل است:</b>\n\n📖 {title_esc}\n🔖 {label_esc}\n\n⚠️ {}\n<i>به محض آزادسازی رایگان در سورس، قابل دریافت خواهد بود.</i>",
+                        "<tg-emoji emoji-id=\"5258382581375723416\">❗️</tg-emoji> <b>این چپتر قفل است:</b>\n\n<tg-emoji emoji-id=\"5237868881267153432\">🔖</tg-emoji> {title_esc}\n<tg-emoji emoji-id=\"5303040337059543238\">🔥</tg-emoji> {label_esc}\n\n{}\n<i>به محض آزادسازی رایگان در سورس، قابل دریافت خواهد بود.</i>",
                         html_escape(&msg)
                     ),
                 )
@@ -2920,7 +2927,7 @@ async fn run_pipeline(
                 .send_error(
                     client,
                     &format!(
-                        "🛡 <b>سورس تحت محافظت ضدربات است:</b>\n\n📖 {title_esc}\n🔖 {label_esc}\n\n⚠️ {}\n<i>دانلود خودکار این سورس مسدود است. لطفاً از سورس‌های دیگر یا اپلیکیشن دسکتاپ استفاده فرمایید.</i>",
+                        "<tg-emoji emoji-id=\"5339428493992162714\">🚫</tg-emoji> <b>سورس تحت محافظت ضدربات است:</b>\n\n<tg-emoji emoji-id=\"5237868881267153432\">🔖</tg-emoji> {title_esc}\n<tg-emoji emoji-id=\"5303040337059543238\">🔥</tg-emoji> {label_esc}\n\n{}\n<i>دانلود خودکار این سورس مسدود است. لطفاً از سورس‌های دیگر یا اپلیکیشن دسکتاپ استفاده فرمایید.</i>",
                         html_escape(&cbe)
                     ),
                 )
@@ -2940,7 +2947,7 @@ async fn run_pipeline(
                 .send_error(
                     client,
                     &format!(
-                        "❌ <b>خطای غیرمنتظره در پردازش دانلود:</b>\n<code>{}</code>\n\n📖 {title_esc}\n🔖 {label_esc}",
+                        "<tg-emoji emoji-id=\"5258382581375723416\">❗️</tg-emoji> <b>خطای غیرمنتظره در پردازش دانلود:</b>\n<code>{}</code>\n\n<tg-emoji emoji-id=\"5237868881267153432\">🔖</tg-emoji> {title_esc}\n<tg-emoji emoji-id=\"5303040337059543238\">🔥</tg-emoji> {label_esc}",
                         html_escape(&e.chars().take(200).collect::<String>())
                     ),
                 )
@@ -2965,7 +2972,7 @@ async fn run_pipeline(
         progress
             .send_error(
                 client,
-                &format!("❌ <b>خطا در دریافت صفحات:</b> {msg}\n\n📖 {title_esc}\n🔖 {label_esc}"),
+                &format!("<tg-emoji emoji-id=\"5258382581375723416\">❗️</tg-emoji> <b>خطا در دریافت صفحات:</b> {msg}\n\n<tg-emoji emoji-id=\"5237868881267153432\">🔖</tg-emoji> {title_esc}\n<tg-emoji emoji-id=\"5303040337059543238\">🔥</tg-emoji> {label_esc}"),
             )
             .await;
         return RunOutcome {
@@ -2998,7 +3005,7 @@ async fn run_pipeline(
             .send_error(
                 client,
                 &format!(
-                    "❌ <b>خطا در دانلود تصاویر:</b> {}\n\n📖 {title_esc}\n🔖 {label_esc}",
+                    "<tg-emoji emoji-id=\"5258382581375723416\">❗️</tg-emoji> <b>خطا در دانلود تصاویر:</b> {}\n\n<tg-emoji emoji-id=\"5237868881267153432\">🔖</tg-emoji> {title_esc}\n<tg-emoji emoji-id=\"5303040337059543238\">🔥</tg-emoji> {label_esc}",
                     html_escape(&msg)
                 ),
             )
@@ -3082,7 +3089,7 @@ async fn run_pipeline(
             .send_error(
                 client,
                 &format!(
-                    "❌ <b>خطا در اعتبارسنجی فایل:</b> {}\n\n📖 {title_esc}\n🔖 {label_esc}",
+                    "<tg-emoji emoji-id=\"5258382581375723416\">❗️</tg-emoji> <b>خطا در اعتبارسنجی فایل:</b> {}\n\n<tg-emoji emoji-id=\"5237868881267153432\">🔖</tg-emoji> {title_esc}\n<tg-emoji emoji-id=\"5303040337059543238\">🔥</tg-emoji> {label_esc}",
                     html_escape(&msg)
                 ),
             )
