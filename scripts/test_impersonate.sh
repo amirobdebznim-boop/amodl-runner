@@ -143,8 +143,14 @@ $IMP_CHROME -s -L -H "rsc: 1" -o ./toonz_search_rsc.txt "https://toonz.to/search
 echo "Toonz /search with RSC bytes: $(wc -c < ./toonz_search_rsc.txt)"
 head -c 300 ./toonz_search_rsc.txt; echo ""
 
-echo "=== Test EZManga Real Download via amodl-runner ==="
-cargo test --test '*' || true
+echo "--- Testing Toonz Chapter 1 RSC ---"
+$IMP_CHROME -s -L -H "rsc: 1" -o ./toonz_chapter1_rsc.txt "https://toonz.to/manhwa/peerless-madam-healer/chapter/1"
+echo "Toonz Chapter 1 RSC bytes: $(wc -c < ./toonz_chapter1_rsc.txt)"
+head -c 500 ./toonz_chapter1_rsc.txt; echo ""
+
+$IMP_CHROME -s -L -o ./toonz_chapter1_html.html "https://toonz.to/manhwa/peerless-madam-healer/chapter/1"
+echo "Toonz Chapter 1 HTML bytes: $(wc -c < ./toonz_chapter1_html.html)"
+grep -i -o '<title[^>]*>[^<]*</title>' ./toonz_chapter1_html.html || true
 
 echo "=== Python curl_cffi check ==="
 python3 -m pip install --quiet curl_cffi
