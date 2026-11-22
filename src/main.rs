@@ -3277,6 +3277,19 @@ mod tests {
     }
 
     #[test]
+    fn test_ezmanga_and_toonz_manifests() {
+        let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let manifests = load_manifests(repo_root);
+        let ez = find_matching_manifest(&manifests, "https://ezmanga.org/series/roxana-the-way-to-protect-the-female-leads-older-brother/chapter-1");
+        assert!(ez.is_some(), "ezmanga manifest should match");
+        assert_eq!(ez.unwrap()["id"], "ezmanga.org");
+
+        let toonz = find_matching_manifest(&manifests, "https://toonz.to/manhwa/peerless-madam-healer/chapter/28");
+        assert!(toonz.is_some(), "toonz manifest should match");
+        assert_eq!(toonz.unwrap()["id"], "toonz.to");
+    }
+
+    #[test]
     fn test_kuaikan_comic_extraction_and_lock() {
         let free_html = r#"<script>window.__NUXT__=(function(a,b,c,d){return {data:[{status:200,comicInfo:{locked:a},res:{data:{comic_info:{comic_images:[{url:b,url1280:c},{url:d}]}}}}]}}(false,"https:\u002F\u002Ftn1.kkmh.com\u002Fp1-w640.jpg","https:\u002F\u002Ftn1.kkmh.com\u002Fp1-w1280.jpg","https:\u002F\u002Ftn1.kkmh.com\u002Fp2-w640.jpg"));</script>"#;
         let pages = parse_kuaikan_comic_html(free_html).unwrap();

@@ -7,7 +7,7 @@
   "kind": "html",
   "nsfw": false,
   "config": {
-    "note": "HeanCMS \u2014 server-rendered listing"
+    "note": "HeanCMS — server-rendered listing"
   },
   "popular": {
     "url": "{baseUrl}/series?page={page}",
@@ -46,14 +46,14 @@
   "chapters": {
     "url": "{mangaUrl}",
     "item_selector": "a[href*='/chapter-'], a[href*='/chapter/']",
-    "name_selector": "button || ",
-    "number_selector": "button || ",
+    "name_selector": "@aria-label || button || ",
+    "number_selector": "@aria-label || button || ",
     "url_selector": "",
     "url_attr": "href"
   },
   "pages": {
     "url": "{chapterUrl}",
-    "image_selector": "img[src*='/upload'], img[src*='/storage'], #readerarea img, .reading-content img",
+    "image_selector": "img.r-page-img, img[src*='/upload'], img[src*='/storage'], #readerarea img, .reading-content img",
     "image_attr": "src"
   }
 }
