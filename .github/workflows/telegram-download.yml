@@ -143,3 +143,28 @@ jobs:
               --bot-token "$TELEGRAM_BOT_TOKEN" \
               --callback-url "https://amodl-telegram-worker.ab0li-4zmmali.workers.dev/api/download-callback"
           fi
+
+      - name: Failure fallback reporter
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || inputs.bot_token }}
+          DOWNLOAD_JOB_ID: ${{ inputs.job_id }}
+          DOWNLOAD_BATCH_JSON: ${{ inputs.batch_json }}
+        run: |
+          if [ -n "$DOWNLOAD_BATCH_JSON" ] && [ "$DOWNLOAD_BATCH_JSON" != "[]" ]; then
+            echo "$DOWNLOAD_BATCH_JSON" | jq -c '.[]' | while read -r item; do
+              JID=$(echo "$item" | jq -r '.job_id')
+              if [ -n "$JID" ] && [ "$JID" != "0" ]; then
+                curl -s -X POST "https://amodl-telegram-worker.ab0li-4zmmali.workers.dev/api/download-callback" \
+                  -H "Content-Type: application/json" \
+                  -H "Authorization: Bearer $TELEGRAM_BOT_TOKEN" \
+                  -d "{\"job_id\": $JID, \"status\": \"failed\", \"error_msg\": \"خطا در اجرای رانر گیت‌هاب (Workflow Failure)\"}" || true
+              fi
+            done
+          elif [ -n "$DOWNLOAD_JOB_ID" ] && [ "$DOWNLOAD_JOB_ID" != "0" ]; then
+            curl -s -X POST "https://amodl-telegram-worker.ab0li-4zmmali.workers.dev/api/download-callback" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $TELEGRAM_BOT_TOKEN" \
+              -d "{\"job_id\": $DOWNLOAD_JOB_ID, \"status\": \"failed\", \"error_msg\": \"خطا در اجرای رانر گیت‌هاب (Workflow Failure)\"}" || true
+          fi
+
