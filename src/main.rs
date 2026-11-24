@@ -2507,7 +2507,7 @@ async def main():
                                 f.write(r.content)
                             return fn
                         else:
-                            sys.stderr.write(f"[cffi] attempt {attempt}: HTTP {r.status_code}, len={len(r.content)} for {url}\n")
+                            sys.stderr.write(f"[cffi] attempt {attempt}: HTTP {r.status_code}, len={len(r.content)}, body={r.text[:300]!r}\n")
                     except Exception as e:
                         sys.stderr.write(f"[cffi] attempt {attempt}: error {e} for {url}\n")
                         await asyncio.sleep(0.2 * (attempt + 1))
