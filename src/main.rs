@@ -3863,4 +3863,43 @@ mod tests {
         assert_eq!(files[0], path);
         assert!(files[0].exists());
     }
+
+    #[test]
+    fn test_optimize_images_large_and_transparent() {
+        use tempfile::tempdir;
+        let dir = tempdir().unwrap();
+        let path1 = dir.path().join("page_001.png");
+        let path2 = dir.path().join("dummy_large.bin");
+
+        // 1. Create a complex RGBA image with gradient + transparent bottom
+        let mut img = image::RgbaImage::new(400, 400);
+        for y in 0..200 {
+            for x in 0..400 {
+                img.put_pixel(x, y, image::Rgba([(x % 256) as u8, (y % 256) as u8, ((x + y) % 256) as u8, 255]));
+            }
+        }
+        for y in 200..400 {
+            for x in 0..400 {
+                img.put_pixel(x, y, image::Rgba([0, 0, 0, 0])); // transparent
+            }
+        }
+        img.save(&path1).unwrap();
+
+        // 2. Create sparse file to push total size over 49MB
+        let f = std::fs::File::create(&path2).unwrap();
+        f.set_len(50 * 1024 * 1024).unwrap();
+
+        let mut files = vec![path1.clone(), path2.clone()];
+        optimize_images_if_needed(&mut files, 95);
+
+        // path1 should be converted to .jpg
+        assert_eq!(files[0].extension().unwrap(), "jpg");
+        assert!(files[0].exists());
+        assert!(!path1.exists()); // old png deleted
+
+        // Verify valid JPEG output and transparent area became white
+        let converted = image::open(&files[0]).unwrap().to_rgb8();
+        let bottom_pixel = converted.get_pixel(200, 300);
+        assert_eq!(bottom_pixel.0, [255, 255, 255]); // transparent became white
+    }
 }
