@@ -3777,6 +3777,36 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_hivetoons_eleceed_live() {
+        let client = Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .unwrap();
+        let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().parent().unwrap();
+
+        // Test single & batch range chapters: 424, 425, 426
+        let test_urls = [
+            ("https://hivetoons.org/series/eleceed/chapter-424", 46),
+            ("https://hivetoons.org/series/eleceed/chapter-425", 33),
+            ("https://hivetoons.org/series/eleceed/chapter-426", 40),
+        ];
+
+        for (url, expected_count) in test_urls {
+            let pages = get_chapter_page_urls(&client, url, repo_root).await.expect("Failed to get hivetoons pages");
+            println!("Hivetoons ({}) pages found: {}", url, pages.len());
+            assert_eq!(pages.len(), expected_count);
+
+            let tmp = tempfile::tempdir().unwrap();
+            let sem = Arc::new(Semaphore::new(10));
+            // Verify first page downloads correctly
+            let path = download_single_image(&client, &sem, pages[0].clone(), 0, tmp.path(), url).await.unwrap();
+            let size = std::fs::metadata(&path).unwrap().len();
+            println!("URL: {} - Page 0 saved at {:?}, size: {} bytes", url, path, size);
+            assert!(size > 1000);
+        }
+    }
+
+    #[tokio::test]
     async fn test_check_three_sources_live() {
         let client = Client::new();
         let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().parent().unwrap();

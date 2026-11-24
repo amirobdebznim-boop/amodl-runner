@@ -20,12 +20,13 @@ jobs:
           key: dl-bin-${{ runner.os }}-${{ hashFiles('src/**', 'Cargo.*') }}
 
       - name: Set up Rust toolchain
-        if: steps.cache-bin.outputs.cache-hit != 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust dependencies
-        if: steps.cache-bin.outputs.cache-hit != 'true'
         uses: Swatinem/rust-cache@v2
+
+      - name: Run live integration tests
+        run: cargo test test_lock_re_detection test_hivetoons -- --nocapture
 
       - name: Build native binary
         if: steps.cache-bin.outputs.cache-hit != 'true'
