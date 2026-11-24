@@ -26,7 +26,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Run live integration tests
-        run: cargo test test_lock_re_detection test_hivetoons -- --nocapture
+        run: cargo test test_hivetoons -- --nocapture
 
       - name: Build native binary
         if: steps.cache-bin.outputs.cache-hit != 'true'

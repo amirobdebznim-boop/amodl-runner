@@ -3187,12 +3187,20 @@ async fn run_pipeline(
         progress
             .update(
                 client,
-                "⚡ بهینه‌سازی کیفیت و حجم تصاویر (JPEG 95%)...",
+                "⚡ بهینه‌سازی کیفیت و حجم تصاویر (JPEG 90%)...",
                 82,
                 true,
             )
             .await;
-        optimize_images_if_needed(&mut images, 95);
+        optimize_images_if_needed(&mut images, 90);
+
+        let current_size: u64 = images
+            .iter()
+            .filter_map(|p| fs::metadata(p).ok().map(|m| m.len()))
+            .sum();
+        if current_size > 49 * 1024 * 1024 {
+            optimize_images_if_needed(&mut images, 82);
+        }
     }
 
     progress
