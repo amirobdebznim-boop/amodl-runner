@@ -3928,7 +3928,7 @@ mod tests {
         f.set_len(50 * 1024 * 1024).unwrap();
 
         let mut files = vec![path1.clone(), path2.clone()];
-        optimize_images_if_needed(&mut files, 95);
+        optimize_images_if_needed(&mut files, 90);
 
         // path1 should be converted to .jpg
         assert_eq!(files[0].extension().unwrap(), "jpg");

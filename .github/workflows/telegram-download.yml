@@ -116,13 +116,38 @@ jobs:
         run: |
           if [ -n "$DOWNLOAD_BATCH_JSON" ] && [ "$DOWNLOAD_BATCH_JSON" != "[]" ]; then
             echo "Running batch download from JSON..."
-            echo "$DOWNLOAD_BATCH_JSON" | jq -c '.[]' | while read -r item; do
+            TOTAL=$(echo "$DOWNLOAD_BATCH_JSON" | jq '. | length')
+            for i in $(seq 0 $((TOTAL - 1))); do
+              CURRENT=$((i + 1))
+              item=$(echo "$DOWNLOAD_BATCH_JSON" | jq -c ".[$i]")
               URL=$(echo "$item" | jq -r '.url')
               LABEL=$(echo "$item" | jq -r '.label')
               JID=$(echo "$item" | jq -r '.job_id')
               TITLE=$(echo "$item" | jq -r '.title // empty')
               [ -z "$TITLE" ] && TITLE="$DOWNLOAD_TITLE"
-              echo "Downloading batch item: $LABEL ($URL)"
+
+              PERCENT=$(( (CURRENT - 1) * 100 / TOTAL ))
+              FILLED=$(( (CURRENT - 1) * 10 / TOTAL ))
+              EMPTY=$(( 10 - FILLED ))
+              BAR=""
+              [ "$FILLED" -gt 0 ] && BAR=$(printf "▰%.0s" $(seq 1 $FILLED))
+              [ "$EMPTY" -gt 0 ] && BAR="${BAR}$(printf "▱%.0s" $(seq 1 $EMPTY))"
+              [ -z "$BAR" ] && BAR="▱▱▱▱▱▱▱▱▱▱"
+
+              if [ -n "$DOWNLOAD_STATUS_MSG_ID" ] && [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+                MSG="🔥 <b>دانلود ${TOTAL} چپتر آغاز شد!</b>
+━━━━━━━━━━━━━━━━━━━━
+<code>[${BAR}]</code> <b>${PERCENT}% (${CURRENT}/${TOTAL})</b>
+
+⏳ در حال دریافت: <b>${LABEL}</b>"
+                curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText" \
+                  --data-urlencode "chat_id=${DOWNLOAD_CHAT_ID}" \
+                  --data-urlencode "message_id=${DOWNLOAD_STATUS_MSG_ID}" \
+                  --data-urlencode "text=${MSG}" \
+                  --data-urlencode "parse_mode=HTML" > /dev/null || true
+              fi
+
+              echo "Downloading batch item $CURRENT/$TOTAL: $LABEL ($URL)"
               ./bin/telegram_downloader \
                 --chat-id "$DOWNLOAD_CHAT_ID" \
                 --chapter-url "$URL" \
@@ -133,7 +158,33 @@ jobs:
                 --delivery-mode "$DOWNLOAD_DELIVERY_MODE" \
                 --bot-token "$TELEGRAM_BOT_TOKEN" \
                 --callback-url "https://amodl-telegram-worker.ab0li-4zmmali.workers.dev/api/download-callback" < /dev/null || echo "Batch item $LABEL ($JID) finished with non-zero exit code"
+
+              if [ -n "$DOWNLOAD_STATUS_MSG_ID" ] && [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+                DONE_PERCENT=$(( CURRENT * 100 / TOTAL ))
+                DONE_FILLED=$(( CURRENT * 10 / TOTAL ))
+                DONE_EMPTY=$(( 10 - DONE_FILLED ))
+                DONE_BAR=""
+                [ "$DONE_FILLED" -gt 0 ] && DONE_BAR=$(printf "▰%.0s" $(seq 1 $DONE_FILLED))
+                [ "$DONE_EMPTY" -gt 0 ] && DONE_BAR="${DONE_BAR}$(printf "▱%.0s" $(seq 1 $DONE_EMPTY))"
+                [ -z "$DONE_BAR" ] && DONE_BAR="▰▰▰▰▰▰▰▰▰▰"
+                MSG="🔥 <b>دانلود ${TOTAL} چپتر آغاز شد!</b>
+━━━━━━━━━━━━━━━━━━━━
+<code>[${DONE_BAR}]</code> <b>${DONE_PERCENT}% (${CURRENT}/${TOTAL})</b>
+
+✅ <b>${LABEL}</b> انجام شد."
+                curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText" \
+                  --data-urlencode "chat_id=${DOWNLOAD_CHAT_ID}" \
+                  --data-urlencode "message_id=${DOWNLOAD_STATUS_MSG_ID}" \
+                  --data-urlencode "text=${MSG}" \
+                  --data-urlencode "parse_mode=HTML" > /dev/null || true
+              fi
             done
+
+            if [ -n "$DOWNLOAD_STATUS_MSG_ID" ] && [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+              curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/deleteMessage" \
+                --data-urlencode "chat_id=${DOWNLOAD_CHAT_ID}" \
+                --data-urlencode "message_id=${DOWNLOAD_STATUS_MSG_ID}" > /dev/null || true
+            fi
           else
             ./bin/telegram_downloader \
               --chat-id "$DOWNLOAD_CHAT_ID" \
