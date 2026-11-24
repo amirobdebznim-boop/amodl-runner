@@ -48,7 +48,7 @@ static AJAX_RE_FALLBACK: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 static LOCK_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?i)(?:this chapter is locked|chapter is locked|locked chapter|premium chapter|please purchase it to read|unlock to continue reading|sign in to unlock|unlocking grants permanent access|unlock this (?:exciting )?chapter|unlock(?:s)? for \d+ coins?|cost to unlock|fast pass chapter|early access chapter|get coins to unlock|coins to read|(?:\\"|")isRedacted(?:\\"|")\s*:\s*true)"#).unwrap()
+    Regex::new(r#"(?i)(?:this chapter is locked|chapter is locked|\blocked chapter\b|premium chapter|please purchase it to read|unlock to continue reading|sign in to unlock|unlocking grants permanent access|unlock this (?:exciting )?chapter|unlock(?:s)? for \d+ coins?|cost to unlock|fast pass chapter|early access chapter|get coins to unlock|coins to read|(?:\\"|")isRedacted(?:\\"|")\s*:\s*true)"#).unwrap()
 });
 
 static PREM_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -61,6 +61,10 @@ static MADARA_LOCK_RE: LazyLock<Regex> = LazyLock::new(|| {
 
 static FEAT_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)featured|chapter-featured").unwrap()
+});
+
+static SCRIPT_STYLE_RX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?is)<(?:script|style)\b[^>]*>.*?</(?:script|style)>").unwrap()
 });
 
 static SANITIZE_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -1437,6 +1441,10 @@ async fn extract_html_pages(
 
     let candidates: &[(&str, &[&str])] = &[
         (
+            "img[data-reader-page-image], [data-reader-page-image] img, img[data-reader-index], [data-reader-index] img",
+            &["src", "data-src", "data-original-src", "data-original", "data-lazy-src"],
+        ),
+        (
             "div.chapter-body img, div.reading-content img, .wp-manga-chapter-img",
             &["data-original-src", "data-original", "data-src", "data-lazy-src", "src"],
         ),
@@ -1524,7 +1532,8 @@ async fn extract_html_pages(
         }
     }
 
-    if LOCK_RE.is_match(&html_text) {
+    let clean_html = SCRIPT_STYLE_RX.replace_all(&html_text, "");
+    if LOCK_RE.is_match(&clean_html) {
         return Err(AppError::ChapterLocked(
             "این چپتر قفل/پولی (Premium یا نیازمند سکه) است و هنوز رایگان نشده است.".to_string(),
         ));
@@ -3531,6 +3540,26 @@ mod tests {
             <p>Unlocking grants permanent access to this chapter</p>
         "#;
         assert!(LOCK_RE.is_match(elftoon_locked));
+
+        let hivetoons_sale_template = r#"
+            <script>window.__CONFIG__ = "{{#if isSaleActive}}<span class=\"sale\">{{salePercentage}}% off locked chapters</span>{{/if}}";</script>
+        "#;
+        let clean = SCRIPT_STYLE_RX.replace_all(hivetoons_sale_template, "");
+        assert!(!LOCK_RE.is_match(&clean));
+    }
+
+    #[test]
+    fn test_hivetoons_reader_image_extraction() {
+        let sample_html = r#"
+            <div class="reader">
+                <img src="https://storage.hivetoon.com/public/upload/series/eleceed/page-0001.webp" data-reader-page-image="true" data-reader-index="0">
+                <img src="https://storage.hivetoon.com/public/upload/series/eleceed/page-0002.webp" data-reader-page-image="true" data-reader-index="1">
+            </div>
+        "#;
+        let doc = Html::parse_document(sample_html);
+        let sel = Selector::parse("img[data-reader-page-image], [data-reader-page-image] img, img[data-reader-index], [data-reader-index] img").unwrap();
+        let urls: Vec<_> = doc.select(&sel).filter_map(|el| el.value().attr("src")).collect();
+        assert_eq!(urls.len(), 2);
     }
 
     #[test]
