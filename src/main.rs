@@ -1,6 +1,7 @@
 use chrono::Utc;
 use clap::Parser;
-use image::{DynamicImage, GenericImage, ImageFormat, RgbaImage};
+use image::codecs::jpeg::JpegEncoder;
+use image::{DynamicImage, ExtendedColorType, GenericImage, ImageFormat, RgbaImage};
 use regex::Regex;
 use reqwest::{multipart, Client};
 use scraper::{Html, Selector};
@@ -331,10 +332,10 @@ async fn extract_mangadex_pages(client: &Client, chapter_url: &str) -> Vec<PageI
         .pointer("/chapter/hash")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    let (folder, filenames) = if let Some(fns) = data.pointer("/chapter/dataSaver").and_then(|v| v.as_array()) {
-        ("data-saver", fns)
-    } else if let Some(fns) = data.pointer("/chapter/data").and_then(|v| v.as_array()) {
+    let (folder, filenames) = if let Some(fns) = data.pointer("/chapter/data").and_then(|v| v.as_array()) {
         ("data", fns)
+    } else if let Some(fns) = data.pointer("/chapter/dataSaver").and_then(|v| v.as_array()) {
+        ("data-saver", fns)
     } else {
         return vec![];
     };
@@ -1251,7 +1252,7 @@ try:
     import curl_cffi
 except ImportError:
     import subprocess
-    subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "--no-cache-dir", "curl_cffi"], check=True)
+    subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "--no-cache-dir", "--break-system-packages", "curl_cffi"], check=True)
     u = site.getusersitepackages()
     if u not in sys.path:
         sys.path.insert(0, u)
@@ -2327,6 +2328,8 @@ async fn fetch_image_bytes(client: &Client, url: &str, referer: &str) -> Option<
         "https://comic.naver.com"
     } else if url.contains("bzcdn.net") {
         "https://www.twbzmg.com/"
+    } else if url.contains("storage.hivetoon.com") || url.contains("hivetoons.org") {
+        "https://hivetoons.org/"
     } else {
         referer
     };
@@ -2336,23 +2339,38 @@ async fn fetch_image_bytes(client: &Client, url: &str, referer: &str) -> Option<
         } else {
             Duration::from_secs(15)
         };
-        if let Ok(res) = client
+        let ref_to_send = if attempt == 2 && url.contains("storage.hivetoon.com") {
+            ""
+        } else {
+            effective_referer
+        };
+        let mut req = client
             .get(&current_url)
             .header("User-Agent", USER_AGENT)
-            .header("Referer", effective_referer)
             .header(
                 "Accept",
                 "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
             )
-            .timeout(req_timeout)
-            .send()
-            .await
-        {
-            if res.status().is_success() {
-                if let Ok(bytes) = res.bytes().await {
-                    if bytes.len() >= 32 {
-                        return Some(bytes.to_vec());
+            .timeout(req_timeout);
+        if !ref_to_send.is_empty() {
+            req = req.header("Referer", ref_to_send);
+        }
+        match req.send().await {
+            Ok(res) => {
+                let status = res.status();
+                if status.is_success() {
+                    if let Ok(bytes) = res.bytes().await {
+                        if bytes.len() >= 32 {
+                            return Some(bytes.to_vec());
+                        }
                     }
+                } else if attempt == 0 {
+                    eprintln!("[AmoDL] Image HTTP {status} for {current_url}");
+                }
+            }
+            Err(e) => {
+                if attempt == 0 {
+                    eprintln!("[AmoDL] Image error {e} for {current_url}");
                 }
             }
         }
@@ -2428,7 +2446,7 @@ try:
     import curl_cffi
 except ImportError:
     import subprocess
-    subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "--no-cache-dir", "curl_cffi"], check=True)
+    subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "--no-cache-dir", "--break-system-packages", "curl_cffi"], check=True)
     u = site.getusersitepackages()
     if u not in sys.path:
         sys.path.insert(0, u)
@@ -2614,8 +2632,89 @@ async fn download_all_images(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 4. Archive Packaging (CBZ / ZIP)
+// 4. Image Optimization & Archive Packaging (CBZ / ZIP)
 // ─────────────────────────────────────────────────────────────────────────────
+
+fn optimize_images_if_needed(image_files: &mut [PathBuf], quality: u8) {
+    let total_size: u64 = image_files
+        .iter()
+        .filter_map(|p| fs::metadata(p).ok().map(|m| m.len()))
+        .sum();
+
+    const MAX_UNCOMPRESSED_BYTES: u64 = 49 * 1024 * 1024;
+    if total_size <= MAX_UNCOMPRESSED_BYTES {
+        println!(
+            "[AmoDL] Total image size ({:.2} MB) <= 49 MB. Keeping original files untouched.",
+            total_size as f64 / (1024.0 * 1024.0)
+        );
+        return;
+    }
+
+    println!(
+        "[AmoDL] Total image size ({:.2} MB) exceeds Telegram limit. Optimizing to JPEG ({quality}% quality)...",
+        total_size as f64 / (1024.0 * 1024.0)
+    );
+
+    for path in image_files.iter_mut() {
+        let Ok(data) = fs::read(&*path) else { continue };
+        let Ok(img) = image::load_from_memory(&data) else { continue };
+
+        let rgb_img = match img {
+            DynamicImage::ImageRgba8(ref rgba) => {
+                let (w, h) = rgba.dimensions();
+                let mut rgb = image::RgbImage::new(w, h);
+                for (x, y, pixel) in rgba.enumerate_pixels() {
+                    let [r, g, b, a] = pixel.0;
+                    if a == 255 {
+                        rgb.put_pixel(x, y, image::Rgb([r, g, b]));
+                    } else if a == 0 {
+                        rgb.put_pixel(x, y, image::Rgb([255, 255, 255]));
+                    } else {
+                        let alpha = a as f32 / 255.0;
+                        let r_out = (r as f32 * alpha + 255.0 * (1.0 - alpha)).round() as u8;
+                        let g_out = (g as f32 * alpha + 255.0 * (1.0 - alpha)).round() as u8;
+                        let b_out = (b as f32 * alpha + 255.0 * (1.0 - alpha)).round() as u8;
+                        rgb.put_pixel(x, y, image::Rgb([r_out, g_out, b_out]));
+                    }
+                }
+                rgb
+            }
+            _ => img.to_rgb8(),
+        };
+
+        let mut jpeg_buf = Vec::with_capacity(data.len() / 2);
+        let mut encoder = JpegEncoder::new_with_quality(&mut jpeg_buf, quality);
+        if encoder
+            .encode(
+                rgb_img.as_raw(),
+                rgb_img.width(),
+                rgb_img.height(),
+                ExtendedColorType::Rgb8,
+            )
+            .is_ok()
+        {
+            if jpeg_buf.len() < data.len() {
+                let target_path = path.with_extension("jpg");
+                if fs::write(&target_path, &jpeg_buf).is_ok() {
+                    if target_path != *path {
+                        let _ = fs::remove_file(&*path);
+                        *path = target_path;
+                    }
+                }
+            }
+        }
+    }
+
+    let new_total_size: u64 = image_files
+        .iter()
+        .filter_map(|p| fs::metadata(p).ok().map(|m| m.len()))
+        .sum();
+    println!(
+        "[AmoDL] Optimization complete: {:.2} MB -> {:.2} MB",
+        total_size as f64 / (1024.0 * 1024.0),
+        new_total_size as f64 / (1024.0 * 1024.0)
+    );
+}
 
 fn create_archive(image_files: &[PathBuf], output_path: &Path) -> std::io::Result<u64> {
     let mut sorted = image_files.to_vec();
@@ -3044,7 +3143,7 @@ async fn run_pipeline(
         };
     }
 
-    let images = download_all_images(
+    let mut images = download_all_images(
         pages,
         &chapter_url,
         &img_dir,
@@ -3077,6 +3176,23 @@ async fn run_pipeline(
             images_count,
             exit_code: 1,
         };
+    }
+
+    let raw_total_size: u64 = images
+        .iter()
+        .filter_map(|p| fs::metadata(p).ok().map(|m| m.len()))
+        .sum();
+
+    if raw_total_size > 49 * 1024 * 1024 {
+        progress
+            .update(
+                client,
+                "⚡ بهینه‌سازی کیفیت و حجم تصاویر (JPEG 95%)...",
+                82,
+                true,
+            )
+            .await;
+        optimize_images_if_needed(&mut images, 95);
     }
 
     progress
@@ -3729,5 +3845,22 @@ mod tests {
             format_name("Solo Leveling", "Chapter", "https://example.com/series/comic/solo-leveling/chapter/45", "cbz"),
             "Ch. 45 - Solo Leveling.cbz"
         );
+    }
+
+    #[test]
+    fn test_optimize_images_if_needed() {
+        use tempfile::tempdir;
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("test_page.png");
+
+        // Create an uncompressed RGBA image
+        let img = image::RgbaImage::new(100, 100);
+        img.save(&path).unwrap();
+
+        let mut files = vec![path.clone()];
+        // When <= 49MB, it shouldn't modify
+        optimize_images_if_needed(&mut files, 95);
+        assert_eq!(files[0], path);
+        assert!(files[0].exists());
     }
 }

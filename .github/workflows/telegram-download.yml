@@ -97,6 +97,10 @@ jobs:
       - name: Ensure binary permissions
         run: chmod +x bin/telegram_downloader
 
+      - name: Install curl_cffi for CDN and WAF bypass
+        run: |
+          pip install --no-cache-dir --break-system-packages curl_cffi || pip install --no-cache-dir curl_cffi || true
+
       - name: Run downloader
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || inputs.bot_token }}
