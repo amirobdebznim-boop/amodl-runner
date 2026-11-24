@@ -2500,12 +2500,16 @@ async def main():
                         if r.status_code == 200 and len(r.content) >= 32:
                             ext = detect_ext(r.content)
                             if not ext:
+                                sys.stderr.write(f"[cffi] detect_ext failed for {url}, head: {r.content[:32]!r}\n")
                                 return None
                             fn = os.path.join(out_dir, f"{idx:04d}{ext}")
                             with open(fn, "wb") as f:
                                 f.write(r.content)
                             return fn
-                    except Exception:
+                        else:
+                            sys.stderr.write(f"[cffi] attempt {attempt}: HTTP {r.status_code}, len={len(r.content)} for {url}\n")
+                    except Exception as e:
+                        sys.stderr.write(f"[cffi] attempt {attempt}: error {e} for {url}\n")
                         await asyncio.sleep(0.2 * (attempt + 1))
             return None
 
