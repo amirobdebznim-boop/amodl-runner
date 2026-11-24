@@ -327,14 +327,18 @@ async fn extract_mangadex_pages(client: &Client, chapter_url: &str) -> Vec<PageI
         .pointer("/chapter/hash")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    let Some(filenames) = data.pointer("/chapter/data").and_then(|v| v.as_array()) else {
+    let (folder, filenames) = if let Some(fns) = data.pointer("/chapter/dataSaver").and_then(|v| v.as_array()) {
+        ("data-saver", fns)
+    } else if let Some(fns) = data.pointer("/chapter/data").and_then(|v| v.as_array()) {
+        ("data", fns)
+    } else {
         return vec![];
     };
 
     filenames
         .iter()
         .filter_map(|fn_val| fn_val.as_str())
-        .map(|fn_str| PageItem::Single(format!("{base_url}/data/{ch_hash}/{fn_str}")))
+        .map(|fn_str| PageItem::Single(format!("{base_url}/{folder}/{ch_hash}/{fn_str}")))
         .collect()
 }
 
@@ -2684,6 +2688,45 @@ async fn upload_to_litterbox(client: &Client, file_path: &Path, expiry: &str) ->
     None
 }
 
+async fn upload_to_tmpfiles(client: &Client, file_path: &Path) -> Option<String> {
+    let Ok(file) = tokio::fs::File::open(file_path).await else {
+        return None;
+    };
+    let file_name = file_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("archive.zip")
+        .to_string();
+    let len = file.metadata().await.ok().map(|m| m.len()).unwrap_or(0);
+    let stream = tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new());
+    let body = reqwest::Body::wrap_stream(stream);
+    let Ok(part) = multipart::Part::stream_with_length(body, len)
+        .file_name(file_name)
+        .mime_str("application/octet-stream")
+    else {
+        return None;
+    };
+    let form = multipart::Form::new().part("file", part);
+    let Ok(resp) = client
+        .post("https://tmpfiles.org/api/v1/upload")
+        .multipart(form)
+        .timeout(Duration::from_secs(120))
+        .send()
+        .await
+    else {
+        return None;
+    };
+    if resp.status().is_success() {
+        if let Ok(v) = resp.json::<Value>().await {
+            if let Some(url) = v.pointer("/data/url").and_then(|u| u.as_str()) {
+                let dl_url = url.replace("https://tmpfiles.org/", "https://tmpfiles.org/dl/");
+                return Some(dl_url);
+            }
+        }
+    }
+    None
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn deliver_to_telegram(
     client: &Client,
@@ -2777,7 +2820,14 @@ async fn deliver_to_telegram(
     progress
         .update(client, "🌐 در حال آماده‌سازی لینک مستقیم دانلود...", 92, true)
         .await;
-    let Some(link_url) = upload_to_litterbox(client, archive_path, "12h").await else {
+    let link_url = match upload_to_litterbox(client, archive_path, "12h").await {
+        Some(u) => Some(u),
+        None => upload_to_tmpfiles(client, archive_path).await,
+    };
+    let Some(link_url) = link_url else {
+        progress
+            .send_error(client, "❌ خطا در آپلود فایل برای لینک مستقیم موقت")
+            .await;
         return (false, Some("Failed to upload to temporary storage".to_string()));
     };
 
@@ -3130,6 +3180,7 @@ async fn run_pipeline(
     } else {
         let e_msg = err.unwrap_or_else(|| "Delivery to Telegram failed".to_string());
         eprintln!("Delivery failed: {e_msg}");
+        progress.send_error(client, &format!("❌ خطا در تحویل فایل: {e_msg}")).await;
         RunOutcome {
             status: "failed",
             err_msg: Some(e_msg),
