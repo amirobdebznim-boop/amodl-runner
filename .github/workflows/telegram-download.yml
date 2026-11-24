@@ -135,11 +135,7 @@ jobs:
               [ -z "$BAR" ] && BAR="▱▱▱▱▱▱▱▱▱▱"
 
               if [ -n "$DOWNLOAD_STATUS_MSG_ID" ] && [ -n "$TELEGRAM_BOT_TOKEN" ]; then
-                MSG="🔥 <b>دانلود ${TOTAL} چپتر آغاز شد!</b>
-━━━━━━━━━━━━━━━━━━━━
-<code>[${BAR}]</code> <b>${PERCENT}% (${CURRENT}/${TOTAL})</b>
-
-⏳ در حال دریافت: <b>${LABEL}</b>"
+                MSG=$(printf "🔥 <b>دانلود %s چپتر آغاز شد!</b>\n━━━━━━━━━━━━━━━━━━━━\n<code>[%s]</code> <b>%s%% (%s/%s)</b>\n\n⏳ در حال دریافت: <b>%s</b>" "$TOTAL" "$BAR" "$PERCENT" "$CURRENT" "$TOTAL" "$LABEL")
                 curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText" \
                   --data-urlencode "chat_id=${DOWNLOAD_CHAT_ID}" \
                   --data-urlencode "message_id=${DOWNLOAD_STATUS_MSG_ID}" \
@@ -167,11 +163,7 @@ jobs:
                 [ "$DONE_FILLED" -gt 0 ] && DONE_BAR=$(printf "▰%.0s" $(seq 1 $DONE_FILLED))
                 [ "$DONE_EMPTY" -gt 0 ] && DONE_BAR="${DONE_BAR}$(printf "▱%.0s" $(seq 1 $DONE_EMPTY))"
                 [ -z "$DONE_BAR" ] && DONE_BAR="▰▰▰▰▰▰▰▰▰▰"
-                MSG="🔥 <b>دانلود ${TOTAL} چپتر آغاز شد!</b>
-━━━━━━━━━━━━━━━━━━━━
-<code>[${DONE_BAR}]</code> <b>${DONE_PERCENT}% (${CURRENT}/${TOTAL})</b>
-
-✅ <b>${LABEL}</b> انجام شد."
+                MSG=$(printf "🔥 <b>دانلود %s چپتر آغاز شد!</b>\n━━━━━━━━━━━━━━━━━━━━\n<code>[%s]</code> <b>%s%% (%s/%s)</b>\n\n✅ <b>%s</b> انجام شد." "$TOTAL" "$DONE_BAR" "$DONE_PERCENT" "$CURRENT" "$TOTAL" "$LABEL")
                 curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText" \
                   --data-urlencode "chat_id=${DOWNLOAD_CHAT_ID}" \
                   --data-urlencode "message_id=${DOWNLOAD_STATUS_MSG_ID}" \
