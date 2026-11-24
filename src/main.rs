@@ -2351,6 +2351,12 @@ async fn fetch_image_bytes(client: &Client, url: &str, referer: &str) -> Option<
                 "Accept",
                 "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
             )
+            .header("sec-ch-ua", r#""Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133""#)
+            .header("sec-ch-ua-mobile", "?0")
+            .header("sec-ch-ua-platform", r#""Windows""#)
+            .header("sec-fetch-dest", "image")
+            .header("sec-fetch-mode", "no-cors")
+            .header("sec-fetch-site", "cross-site")
             .timeout(req_timeout);
         if !ref_to_send.is_empty() {
             req = req.header("Referer", ref_to_send);
@@ -2474,12 +2480,23 @@ async def main():
     async with AsyncSession(impersonate="chrome120") as s:
         async def fetch(idx, url):
             async with sem:
-                headers = {}
-                if referer:
-                    headers["Referer"] = referer
+                eff_ref = referer
+                if "storage.hivetoon.com" in url or "hivetoons.org" in url:
+                    eff_ref = "https://hivetoons.org/"
+                headers = {
+                    "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+                    "Sec-Fetch-Dest": "image",
+                    "Sec-Fetch-Mode": "no-cors",
+                    "Sec-Fetch-Site": "cross-site",
+                }
+                if eff_ref:
+                    headers["Referer"] = eff_ref
                 for attempt in range(3):
                     try:
-                        r = await s.get(url, headers=headers, timeout=15)
+                        req_headers = dict(headers)
+                        if attempt == 2 and "storage.hivetoon.com" in url:
+                            req_headers.pop("Referer", None)
+                        r = await s.get(url, headers=req_headers, timeout=15)
                         if r.status_code == 200 and len(r.content) >= 32:
                             ext = detect_ext(r.content)
                             if not ext:
@@ -3805,12 +3822,15 @@ mod tests {
             assert_eq!(pages.len(), expected_count);
 
             let tmp = tempfile::tempdir().unwrap();
-            let sem = Arc::new(Semaphore::new(10));
-            // Verify first page downloads correctly
-            let path = download_single_image(&client, &sem, pages[0].clone(), 0, tmp.path(), url).await.unwrap();
-            let size = std::fs::metadata(&path).unwrap().len();
-            println!("URL: {} - Page 0 saved at {:?}, size: {} bytes", url, path, size);
-            assert!(size > 1000);
+            let subset = pages[..2].to_vec();
+            let files = download_all_images_cffi(&subset, url, tmp.path()).await;
+            println!("Downloaded {} images via cffi for {}", files.len(), url);
+            assert_eq!(files.len(), 2);
+            for f in &files {
+                assert!(f.exists());
+                let size = std::fs::metadata(f).unwrap().len();
+                assert!(size > 1000);
+            }
         }
     }
 
