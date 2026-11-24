@@ -29,8 +29,8 @@ jobs:
         run: |
           pip install --no-cache-dir --break-system-packages curl_cffi || pip install --no-cache-dir curl_cffi || true
 
-      - name: Run unit tests
-        run: cargo test test_optimize_images -- --nocapture
+      - name: Run unit & live integration tests
+        run: cargo test test_hivetoons -- --nocapture
 
       - name: Build native binary
         if: steps.cache-bin.outputs.cache-hit != 'true'
