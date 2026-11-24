@@ -2387,6 +2387,23 @@ async fn fetch_image_bytes(client: &Client, url: &str, referer: &str) -> Option<
         }
         tokio::time::sleep(Duration::from_millis(200 * (attempt + 1))).await;
     }
+    if url.contains("storage.hivetoon.com") {
+        if let Ok(res) = client
+            .get("https://amodl-telegram-worker.ab0li-4zmmali.workers.dev/api/image-proxy")
+            .query(&[("url", url), ("ref", "https://hivetoons.org/")])
+            .timeout(Duration::from_secs(20))
+            .send()
+            .await
+        {
+            if res.status().is_success() {
+                if let Ok(bytes) = res.bytes().await {
+                    if bytes.len() >= 32 {
+                        return Some(bytes.to_vec());
+                    }
+                }
+            }
+        }
+    }
     None
 }
 
@@ -2506,6 +2523,17 @@ async def main():
                             with open(fn, "wb") as f:
                                 f.write(r.content)
                             return fn
+                        elif r.status_code == 403 and "storage.hivetoon.com" in url:
+                            proxy_url = f"https://amodl-telegram-worker.ab0li-4zmmali.workers.dev/api/image-proxy?url={url}&ref=https://hivetoons.org/"
+                            r2 = await s.get(proxy_url, timeout=20)
+                            if r2.status_code == 200 and len(r2.content) >= 32:
+                                ext = detect_ext(r2.content) or ".webp"
+                                fn = os.path.join(out_dir, f"{idx:04d}{ext}")
+                                with open(fn, "wb") as f:
+                                    f.write(r2.content)
+                                return fn
+                            else:
+                                sys.stderr.write(f"[cffi] proxy attempt {attempt}: HTTP {r2.status_code} for {url}\n")
                         else:
                             sys.stderr.write(f"[cffi] attempt {attempt}: HTTP {r.status_code}, len={len(r.content)}, body={r.text[:300]!r}\n")
                     except Exception as e:
