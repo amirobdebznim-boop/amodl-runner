@@ -43,11 +43,6 @@ on:
         required: false
         default: 'auto'
         type: string
-      bot_token:
-        description: 'Telegram Bot Token'
-        required: false
-        default: ''
-        type: string
       batch_json:
         description: 'Batch chapters JSON array'
         required: false
@@ -103,7 +98,7 @@ jobs:
 
       - name: Run downloader
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || inputs.bot_token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           DOWNLOAD_CHAT_ID: ${{ inputs.chat_id }}
           DOWNLOAD_CHAPTER_URL: ${{ inputs.chapter_url }}
           DOWNLOAD_TITLE: ${{ inputs.manga_title }}
@@ -131,7 +126,6 @@ jobs:
                 --job-id "$JID" \
                 --format "$DOWNLOAD_FORMAT" \
                 --delivery-mode "$DOWNLOAD_DELIVERY_MODE" \
-                --bot-token "$TELEGRAM_BOT_TOKEN" \
                 --callback-url "https://amodl-telegram-worker.ab0li-4zmmali.workers.dev/api/download-callback" < /dev/null || echo "Batch item $LABEL ($JID) finished with non-zero exit code"
             done
           else
@@ -144,14 +138,13 @@ jobs:
               --status-msg-id "$DOWNLOAD_STATUS_MSG_ID" \
               --format "$DOWNLOAD_FORMAT" \
               --delivery-mode "$DOWNLOAD_DELIVERY_MODE" \
-              --bot-token "$TELEGRAM_BOT_TOKEN" \
               --callback-url "https://amodl-telegram-worker.ab0li-4zmmali.workers.dev/api/download-callback"
           fi
 
       - name: Failure fallback reporter
         if: failure()
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || inputs.bot_token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           DOWNLOAD_JOB_ID: ${{ inputs.job_id }}
           DOWNLOAD_BATCH_JSON: ${{ inputs.batch_json }}
         run: |
