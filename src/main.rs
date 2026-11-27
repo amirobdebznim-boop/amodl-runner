@@ -2004,6 +2004,215 @@ async fn extract_kuaikan_pages(client: &Client, chapter_url: &str) -> Result<Vec
     Ok(urls.into_iter().map(PageItem::Single).collect())
 }
 
+fn decode_acqq_data(data: &str, nonce: &str) -> Option<String> {
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
+    static NONCE_SPLIT_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"\d+[a-zA-Z]+").unwrap());
+
+    let chunks: Vec<&str> = NONCE_SPLIT_RE.find_iter(nonce).map(|m| m.as_str()).collect();
+    if chunks.is_empty() {
+        return None;
+    }
+    let mut chars: Vec<char> = data.chars().collect();
+    for chunk in chunks.iter().rev() {
+        let digit_len = chunk.bytes().take_while(|b| b.is_ascii_digit()).count();
+        let loc = chunk[..digit_len].parse::<usize>().ok()? & 255;
+        let len = chunk.len() - digit_len;
+        if loc < chars.len() {
+            let end = (loc + len).min(chars.len());
+            chars.drain(loc..end);
+        }
+    }
+    let cleaned: String = chars
+        .into_iter()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '+' || *c == '/' || *c == '=')
+        .collect();
+    let decoded = STANDARD.decode(cleaned.as_bytes()).ok()?;
+    String::from_utf8(decoded).ok()
+}
+
+fn eval_simple_string_concat(expr: &str) -> Option<String> {
+    let mut out = String::new();
+    for part in expr.split('+') {
+        let t = part.trim();
+        if (t.starts_with('\'') && t.ends_with('\'')) || (t.starts_with('"') && t.ends_with('"')) {
+            out.push_str(&t[1..t.len() - 1]);
+        } else {
+            return None;
+        }
+    }
+    Some(out)
+}
+
+async fn eval_acqq_nonces(exprs: &[String]) -> Vec<String> {
+    if exprs.is_empty() {
+        return vec![];
+    }
+    let js = r#"
+const fs = require('fs');
+const vm = require('vm');
+const exprs = JSON.parse(fs.readFileSync(0, 'utf8'));
+const out = [];
+for (const expr of exprs) {
+  try {
+    const val = String(vm.runInNewContext('(' + expr + ')', Object.create(null), { timeout: 200 }));
+    if (/^[0-9a-fA-F]{16,}$/.test(val)) out.push(val);
+  } catch {}
+}
+console.log(JSON.stringify(out));
+"#;
+    if let Ok(mut child) = Command::new("node")
+        .args(["-e", js])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .kill_on_drop(true)
+        .spawn()
+    {
+        if let Some(mut stdin) = child.stdin.take() {
+            use tokio::io::AsyncWriteExt;
+            let payload = serde_json::to_vec(exprs).unwrap_or_default();
+            let _ = stdin.write_all(&payload).await;
+            let _ = stdin.flush().await;
+        }
+        if let Ok(Ok(out)) = tokio::time::timeout(Duration::from_secs(10), child.wait_with_output()).await {
+            if out.status.success() {
+                if let Ok(vals) = serde_json::from_slice::<Vec<String>>(&out.stdout) {
+                    if !vals.is_empty() {
+                        return vals;
+                    }
+                }
+            }
+        }
+    }
+    exprs
+        .iter()
+        .filter_map(|e| eval_simple_string_concat(e))
+        .filter(|s| s.len() >= 16 && s.chars().all(|c| c.is_ascii_hexdigit()))
+        .collect()
+}
+
+fn parse_acqq_payload(data: &str, nonces: &[String]) -> Result<Vec<PageItem>, AppError> {
+    const PLACEHOLDER_HASH: &str = "a1827afc3b8d37cfd3f7242cc713f5751";
+    let mut parsed_json: Option<Value> = None;
+    for nonce in nonces.iter().rev() {
+        if let Some(raw) = decode_acqq_data(data, nonce) {
+            if let Ok(v) = serde_json::from_str::<Value>(&raw) {
+                if v.get("picture").and_then(|p| p.as_array()).is_some() {
+                    parsed_json = Some(v);
+                    break;
+                }
+            }
+        }
+    }
+    let Some(v) = parsed_json else {
+        return Ok(vec![]);
+    };
+
+    let pics = v
+        .get("picture")
+        .and_then(|p| p.as_array())
+        .map(|a| a.as_slice())
+        .unwrap_or(&[]);
+    let is_locked = v
+        .get("chapter")
+        .and_then(|c| c.get("canRead"))
+        .and_then(|b| b.as_bool())
+        == Some(false)
+        || v.get("chapter")
+            .and_then(|c| c.get("is_app_chapter"))
+            .and_then(|b| b.as_i64())
+            == Some(1)
+        || (v.get("chapter")
+            .and_then(|c| c.get("vipStatus"))
+            .and_then(|b| b.as_i64())
+            == Some(2)
+            && pics.len() == 1)
+        || (pics.len() == 1
+            && pics[0]
+                .get("url")
+                .and_then(|u| u.as_str())
+                .map(|u| u.contains(PLACEHOLDER_HASH))
+                == Some(true));
+    if is_locked {
+        return Err(AppError::ChapterLocked(
+            "این چپتر در ac.qq.com قفل (VIP / پولی) است.".to_string(),
+        ));
+    }
+
+    let pages: Vec<PageItem> = pics
+        .iter()
+        .filter_map(|p| p.get("url").and_then(|u| u.as_str()))
+        .filter(|u| u.starts_with("http") && !u.contains(PLACEHOLDER_HASH))
+        .map(|u| PageItem::Single(u.to_string()))
+        .collect();
+    Ok(pages)
+}
+
+async fn parse_acqq_html(html: &str) -> Result<Vec<PageItem>, AppError> {
+    static DATA_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r#"var\s+DATA\s*=\s*'([^']+)'"#).unwrap());
+    static WIN_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r#"window\s*\[[^\]]+\]\s*=\s*([^;]+);"#).unwrap());
+
+    if is_cloudflare_challenge(html) {
+        return Err(AppError::CloudflareBlocked(
+            "صفحه توسط Cloudflare مسدود شده است.".to_string(),
+        ));
+    }
+    let Some(data) = DATA_RE.captures(html).and_then(|c| c.get(1)).map(|m| m.as_str()) else {
+        return Ok(vec![]);
+    };
+    let exprs: Vec<String> = WIN_RE
+        .captures_iter(html)
+        .filter_map(|c| c.get(1).map(|m| m.as_str().trim().to_string()))
+        .collect();
+    let nonces = eval_acqq_nonces(&exprs).await;
+    parse_acqq_payload(data, &nonces)
+}
+
+async fn fetch_acqq_via_curl(chapter_url: &str) -> Option<String> {
+    let out = Command::new("curl")
+        .args([
+            "-sSL",
+            "--max-time",
+            "25",
+            "-A",
+            USER_AGENT,
+            "-e",
+            "https://ac.qq.com/",
+            chapter_url,
+        ])
+        .output()
+        .await
+        .ok()?;
+    let body = String::from_utf8_lossy(&out.stdout).to_string();
+    (!body.is_empty()).then_some(body)
+}
+
+async fn extract_acqq_pages(client: &Client, chapter_url: &str) -> Result<Vec<PageItem>, AppError> {
+    if let Ok(res) = client
+        .get(chapter_url)
+        .header("User-Agent", USER_AGENT)
+        .header("Referer", "https://ac.qq.com/")
+        .timeout(Duration::from_secs(20))
+        .send()
+        .await
+    {
+        if res.status().is_success() {
+            let html = res.text().await.unwrap_or_default();
+            let pages = parse_acqq_html(&html).await?;
+            if !pages.is_empty() {
+                return Ok(pages);
+            }
+        }
+    }
+    if let Some(curl_html) = fetch_acqq_via_curl(chapter_url).await {
+        return parse_acqq_html(&curl_html).await;
+    }
+    Ok(vec![])
+}
+
 async fn get_chapter_page_urls(
     client: &Client,
     chapter_url: &str,
@@ -2013,6 +2222,10 @@ async fn get_chapter_page_urls(
         .ok()
         .and_then(|u| u.host_str().map(|h| h.to_lowercase()))
         .unwrap_or_default();
+
+    if host.contains("ac.qq.com") {
+        return extract_acqq_pages(client, chapter_url).await;
+    }
 
     if host.contains("asurascans.com") || host.contains("asuracomic.net") {
         let pages = extract_asura_pages(client, chapter_url).await?;
@@ -2330,6 +2543,8 @@ async fn fetch_image_bytes(client: &Client, url: &str, referer: &str) -> Option<
         "https://www.twbzmg.com/"
     } else if url.contains("storage.hivetoon.com") || url.contains("hivetoons.org") {
         "https://hivetoons.org/"
+    } else if url.contains("acimg.cn") {
+        "https://ac.qq.com/"
     } else {
         referer
     };
@@ -2612,7 +2827,8 @@ async fn download_all_images(
 ) -> Vec<PathBuf> {
     let page_urls_backup = page_urls.clone();
     let total = page_urls.len();
-    let sem = Arc::new(Semaphore::new(32));
+    let max_conc = if referer.contains("ac.qq.com") { 4 } else { 32 };
+    let sem = Arc::new(Semaphore::new(max_conc));
     let completed = Arc::new(Mutex::new(0usize));
     let mut handles = Vec::with_capacity(total);
 
@@ -3991,5 +4207,67 @@ mod tests {
         let converted = image::open(&files[0]).unwrap().to_rgb8();
         let bottom_pixel = converted.get_pixel(200, 300);
         assert_eq!(bottom_pixel.0, [255, 255, 255]); // transparent became white
+    }
+
+    #[tokio::test]
+    async fn test_acqq_parse_html_and_locked() {
+        use base64::{engine::general_purpose::STANDARD, Engine as _};
+
+        // Construct realistic DATA payload spliced at index 1 with 1 junk char ("1a" -> 1 char at loc 1)
+        let orig = STANDARD.encode(
+            r#"{"chapter":{"canRead":true},"picture":[{"url":"https://manhua.acimg.cn/1.jpg"},{"url":"https://manhua.acimg.cn/2.jpg"}]}"#,
+        );
+        let mut chars: Vec<char> = orig.chars().collect();
+        chars.insert(1, 'Z');
+        let spliced: String = chars.into_iter().collect();
+
+        // Mirrors Tencent AC HTML: decoy nonce first, real eval-based nonce second (tried in reverse)
+        let html = format!(
+            r#"<script>window["no" + "nce"] = '' + '8df758aee2de9d897c73f09e7d109b1a';</script>
+               <script>window["n"+"once"] = "" + (+eval("parseInt(3/2)")).toString() + "a00000000000000";</script>
+               <script>var DATA = '{spliced}';</script>"#
+        );
+        let pages = parse_acqq_html(&html).await.unwrap();
+        assert_eq!(
+            pages,
+            vec![
+                PageItem::Single("https://manhua.acimg.cn/1.jpg".to_string()),
+                PageItem::Single("https://manhua.acimg.cn/2.jpg".to_string()),
+            ]
+        );
+
+        let locked_orig = STANDARD.encode(
+            r#"{"chapter":{"canRead":false,"vipStatus":2},"picture":[{"url":"https://manhua.acimg.cn/a1827afc3b8d37cfd3f7242cc713f5751.jpg"}]}"#,
+        );
+        let mut lchars: Vec<char> = locked_orig.chars().collect();
+        lchars.insert(1, 'Z');
+        let lspliced: String = lchars.into_iter().collect();
+        let locked_html = format!(
+            r#"<script>window["n"+"once"] = "1a00000000000000";</script><script>var DATA = '{lspliced}';</script>"#
+        );
+        assert!(matches!(
+            parse_acqq_html(&locked_html).await,
+            Err(AppError::ChapterLocked(_))
+        ));
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_acqq_extract_live() {
+        let client = Client::new();
+        let tmp = tempfile::tempdir().unwrap();
+        let url11 = "https://ac.qq.com/ComicView/index/id/657981/cid/158993";
+        let pages11 = get_chapter_page_urls(&client, url11, tmp.path()).await.unwrap();
+        assert!(pages11.len() >= 30, "Expected >=30 pages for ch 11, got {}", pages11.len());
+
+        let url12 = "https://ac.qq.com/ComicView/index/id/657981/cid/158994";
+        let pages12 = get_chapter_page_urls(&client, url12, tmp.path()).await.unwrap();
+        assert!(pages12.len() >= 30, "Expected >=30 pages for ch 12, got {}", pages12.len());
+
+        let PageItem::Single(first_img) = &pages11[0] else {
+            panic!("Expected single page URL");
+        };
+        let bytes = fetch_image_bytes(&client, first_img, url11).await.expect("image fetch");
+        assert!(bytes.len() > 1000 && detect_image_ext(&bytes).is_some());
     }
 }

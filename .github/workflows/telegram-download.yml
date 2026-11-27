@@ -61,8 +61,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js (for HipMH runtime decoder)
-        if: contains(inputs.chapter_url, 'hipmh') || contains(inputs.batch_json, 'hipmh')
+      - name: Set up Node.js (for HipMH & Tencent AC runtime decoder)
+        if: contains(inputs.chapter_url, 'hipmh') || contains(inputs.batch_json, 'hipmh') || contains(inputs.chapter_url, 'ac.qq.com') || contains(inputs.batch_json, 'ac.qq.com')
         uses: actions/setup-node@v4
         with:
           node-version: '20'
